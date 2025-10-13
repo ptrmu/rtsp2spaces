@@ -73,9 +73,8 @@ def parse_args(std_msg: StdMsg) -> ap.Namespace:
     parser = CustomArgumentParser(std_msg=std_msg)
 
     parser.add_argument("--verbose",
-                        type=bool,
-                        help="turn on verbose mode",
-                        default=False)
+                        action="store_true",
+                        help="turn on verbose mode")
 
     parser.add_argument("secrets_filename",
                         type=str,
@@ -153,7 +152,7 @@ class Capture:
 
         # Check if the camera opened successfully
         if not cap.isOpened():
-            std_msg.error(f"Can not open stream:{rtsp_url}")
+            std_msg.error(f"Cannot open RTSP stream to host {args.host}/{args.stream_selector}")
 
         ret0 = cap.grab()
         ret1 = cap.grab()
@@ -201,6 +200,7 @@ def save_image(std_msg: StdMsg, filenames: Filenames, capture):
     origin = max(0, int(width / 2.0 - new_width / 2.0))
 
     try:
+        filenames.local_image.parent.mkdir(parents=True, exist_ok=True)
         success = cv2.imwrite(str(filenames.local_image), capture.frame[:, origin:origin + new_width])
         if not success:
             std_msg.error(f"Failed to write image to {filenames.local_image}")
@@ -277,7 +277,10 @@ def upload_to_spaces(std_msg: StdMsg, args: ap.Namespace, secrets: Secrets, file
 
         std_msg.info(f"Metadata uploaded successfully: {args.upload_metadata_name}")
 
-        client.close()
+        try:
+            client.close()
+        except Exception:
+            pass
 
     except Exception as e:
         std_msg.error(f"Error initializing S3 client: {e}")
