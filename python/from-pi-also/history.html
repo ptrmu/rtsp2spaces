@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SolidJS Image Slider</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 2rem;
+        text-align: center;
+      }
+      img {
+        width: 300px;
+        height: 300px;
+        object-fit: cover;
+        border: 2px solid #000;
+        border-radius: 10px;
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SolidJS Image Slider</h1>
+    <div id="root"></div>
+    <script type="module">
+      import { createSignal } from "https://cdn.jsdelivr.net/npm/solid-js/+esm";
+      import { render } from "https://cdn.jsdelivr.net/npm/solid-js/web/+esm";
+
+      const App = () => {
+        const [selectedImageIndex, setSelectedImageIndex] = createSignal(0);
+        const images = [
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\mazama_stake_202502230045.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\mazama_stake_202502230145.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\mazama_stake_202502230250.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\mazama_stake_202502230350.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\mazama_stake_202502230450.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\mazama_stake_202502230550.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\mazama_stake_202502230650.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\mazama_stake_202502230750.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\mazama_stake_202502230850.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250217\\\\mazama_stake_202502172320.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502180020.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502180120.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502180220.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502180320.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502180420.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502180520.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502180620.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502180720.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502180820.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502180920.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502181020.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502181120.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502181220.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502181320.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502181420.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502181520.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502181620.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502181720.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502181820.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502181920.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502182020.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502182120.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502182220.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250218\\\\mazama_stake_202502182320.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502190020.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502190120.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502190220.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502190320.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502190420.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502190520.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502190620.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502190720.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502190820.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502190920.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502191020.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502191120.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502191220.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502191320.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502191420.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502191520.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502191620.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502191720.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502191820.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502191920.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502192020.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502192120.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502192220.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250219\\\\mazama_stake_202502192320.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502200020.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502200120.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502200220.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502200320.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502200420.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502200520.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502200620.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502200720.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502200820.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502200920.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502201020.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502201120.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502201220.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502201320.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502201420.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502201520.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502201620.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502201720.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502201815.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502201915.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502202015.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502202115.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502202215.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250220\\\\mazama_stake_202502202315.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502210015.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502210115.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502210215.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502210315.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502210415.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502210515.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502210615.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502210715.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502210815.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502210915.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502211015.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502211115.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502211215.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502211315.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502211415.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502211515.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502211615.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502211715.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502211815.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502211915.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502212015.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502212115.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502212215.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250221\\\\mazama_stake_202502212315.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502220015.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502220115.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502220215.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502220315.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502220415.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502220515.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502220615.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502220715.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502220815.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502220915.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502221015.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502221115.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502221215.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502221315.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502221415.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502221515.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502221615.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502221715.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502221815.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502221915.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502222015.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502222115.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502222215.jpg",
+"C:\\\\Users\\\\gauss\\\\Documents\\\\Work\\\\RTSP2Spaces\\\\image_stg\\\\files\\\\20250222\\\\mazama_stake_202502222315.jpg",
+        ];
+
+        // Create container
+        const container = document.createElement("div");
+
+        // Create label
+        const label = document.createElement("label");
+        label.setAttribute("for", "image-slider");
+        label.textContent = `Selected Image: ${selectedImageIndex() + 1}`;
+        container.appendChild(label);
+
+        // Create slider
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.id = "image-slider";
+        slider.min = "0";
+        slider.max = images.length - 1;
+        slider.value = selectedImageIndex();
+        slider.addEventListener("input", (event) => {
+          setSelectedImageIndex(Number(event.target.value));
+          // Update the label content
+          label.textContent = `Selected Image: ${selectedImageIndex() + 1}`;
+        });
+        container.appendChild(slider);
+
+        // Create image element
+        const image = document.createElement("img");
+        image.src = images[selectedImageIndex()];
+        image.alt = `Image ${selectedImageIndex() + 1}`;
+        container.appendChild(image);
+
+        // Reactively update image on slider change
+        slider.addEventListener("input", () => {
+          image.src = images[selectedImageIndex()];
+          image.alt = `Image ${selectedImageIndex() + 1}`;
+        });
+
+        return container;
+      };
+
+      render(App, document.getElementById("root"));
+    </script>
+  </body>
+</html>

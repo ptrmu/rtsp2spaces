@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mazama Snow Stake</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #101010;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        div {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+       }
+
+        h1, h4 {
+            text-align: center;
+            margin: 1px;
+            flex-shrink: 0;
+        }
+
+        img {
+            text-align: center;
+            max-width: 100%;
+            max-height: calc(100% - 80px);
+            object-fit: contain;
+            flex-shrink: 1;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <h1>Mazama Snow Stake</h1>
+        <h4 id="image-timestamp">Thursday 2/20 4:05pm</h4>
+        <img id="stake-image" src="" alt="Mazama Snow Stake">
+    </div>
+    <script>
+        const jsonUrl = 'https://stake-images.sfo3.digitaloceanspaces.com/mazama/latest/stake_image.json';
+        const imageElement = document.getElementById('stake-image');
+        const timestampElement = document.getElementById('image-timestamp');
+
+        let fetchTimer = null;
+
+        async function fetchJsonData() {
+            try {
+                const response = await fetch(jsonUrl + `?t=${new Date().getTime()}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const jsonData = await response.json();
+
+                processJsonData(jsonData);
+
+            } catch (error) {
+                console.error('Failed to fetch JSON:', error);
+            }
+        }
+
+        function processJsonData(data) {
+            updateImage(data);
+            updateTimestamp(data.timestamp);
+
+            // Set a timer to fetch new JSON exactly when the current data expires
+            // Assuming the JSON contains a "valid_until" field as a UNIX timestamp
+            const validUntil = new Date(data.valid_until * 1000);
+            scheduleNextFetch(validUntil);
+        }
+
+        function updateImage(data) {
+            imageElement.src = `${data.image.url}?t=${new Date().getTime()}`;
+            imageElement.alt = data.image.alt;
+        }
+
+        function updateTimestamp(timestamp) {
+            const date = new Date(timestamp * 1000);
+
+            const options = {
+                weekday: 'long',
+                month: 'numeric',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: true
+            };
+
+            timestampElement.textContent = date.toLocaleString(undefined, options);
+        }
+
+        function scheduleNextFetch(validUntil) {
+            if (fetchTimer) {
+                clearTimeout(fetchTimer);
+            }
+
+            // Schedule the next fetch when the data expires. Add 5 seconds incase clocks are out of sync.
+            const now = new Date();
+            const timeUntilInvalid = Math.max(validUntil - now, 0.0) + 5000; // Time remaining in milliseconds
+            console.log(`Scheduling next fetch in ${timeUntilInvalid / 1000} seconds ` +
+                        `at ${Math.floor((now.getTime() + timeUntilInvalid) / 1000)}`);
+            fetchTimer = setTimeout(fetchJsonData, timeUntilInvalid); // Schedule fetch when the data expires
+        }
+
+        // Perform the initial fetch on page load
+        fetchJsonData();
+    </script>
+</body>
+</html>
