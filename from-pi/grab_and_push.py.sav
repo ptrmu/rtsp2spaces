@@ -1,0 +1,68 @@
+import cv2
+import boto3
+import time
+import shutil
+
+local_time = time.localtime()
+current_time = time.strftime("%m/%d/%Y-%H:%M:%S", local_time)
+filename_time = time.strftime("%Y%m%d%H%M", local_time)
+
+work_dir = "/home/peter/Work/grab_and_push/"
+local_file = work_dir + "stake_image.jpg"
+save_file = work_dir + "files/mazama_stake_" + filename_time + ".jpg"
+
+# Create a VideoCapture object
+cap = cv2.VideoCapture("rtsp://admin:FnJmtZsAsZ9.@192.168.1.25/Preview_02_main")
+
+# Check if the camera opened successfully
+if not cap.isOpened():
+    print("Cannot open camera")
+    exit()
+
+ret0 = cap.grab()
+ret1 = cap.grab()
+ret2 = cap.grab()
+ret3, frame = cap.read()
+
+# Release the capture
+cap.release()
+
+if not (ret0 and ret1 and ret2 and ret3):
+    print(current_time, "Can't receive frame (stream end?). Exiting ...")
+    exit(1)
+
+shape = frame.shape
+height = shape[0]
+width = shape[1]
+new_width = height if height < width else width
+origin = max(0, int(width / 2.0 - new_width / 2.0))
+
+cv2.imwrite(local_file, frame[:, origin:origin+new_width])
+
+shutil.copy2(local_file, save_file)
+
+key_id = str("DO00KD6F2YQCMVAWFF8N")
+secret_access_key = str("bategMqsRz+Ht4TKxPeVGleJII4C/n3VZLsC0kDxxDQ")
+region_name = "sfo3"
+bucket_name = "stake-images"
+upload_name = "mazama/latest/stake_image.jpg"
+
+session = boto3.session.Session()
+client = session.client('s3',
+                        region_name=str(region_name),
+                        endpoint_url='https://' + str(region_name) + '.digitaloceanspaces.com',
+                        aws_access_key_id=key_id,
+                        aws_secret_access_key=secret_access_key)
+
+
+try:
+    client.upload_file(local_file, bucket_name, upload_name,
+                       ExtraArgs={"ContentType": "image/jpeg", "CacheControl": "max-age=60", "ACL": "public-read"})
+    print(current_time, "Success")
+
+except Exception as e:
+    print(current_time, "Error occured. Check Space name, etc", e)
+    exit(1)
+
+
+
