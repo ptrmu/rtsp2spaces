@@ -6,7 +6,7 @@ import pathlib as pl
 import shutil
 
 # Create a VideoCapture object
-cap = cv2.VideoCapture("rtsp://admin:.5Yd!o$N&@mxN&LWRiwW@192.168.1.183/Preview_02_main")
+cap = cv2.VideoCapture("rtsp://<user>:<password>@192.168.1.183/Preview_02_main")
 
 # Check if the camera opened successfully
 if not cap.isOpened():

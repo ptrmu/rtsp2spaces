@@ -6,7 +6,7 @@ import pathlib as pl
 import shutil
 
 # Create a VideoCapture object
-cap = cv2.VideoCapture("rtsp://admin:FnJmtZsAsZ9.@192.168.1.25/Preview_02_main")
+cap = cv2.VideoCapture("rtsp://<user>:<password>@192.168.1.25/Preview_02_main")
 
 # Check if the camera opened successfully
 if not cap.isOpened():
@@ -48,8 +48,8 @@ origin = max(0, int(width / 2.0 - new_width / 2.0))
 cv2.imwrite(str(local_file), frame[:, origin:origin+new_width])
 shutil.copy2(local_file, save_file)
 
-key_id = str("DO00KD6F2YQCMVAWFF8N")
-secret_access_key = str("bategMqsRz+Ht4TKxPeVGleJII4C/n3VZLsC0kDxxDQ")
+key_id = str("<spaces_key>")
+secret_access_key = str("<spaces_access_key>")
 region_name = "sfo3"
 bucket_name = "stake-images"
 image_upload_name = "mazama/latest/stake_image.jpg"

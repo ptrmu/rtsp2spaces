@@ -12,7 +12,7 @@ local_file = work_dir + "stake_image.jpg"
 save_file = work_dir + "files/mazama_stake_" + filename_time + ".jpg"
 
 # Create a VideoCapture object
-cap = cv2.VideoCapture("rtsp://admin:FnJmtZsAsZ9.@192.168.1.25/Preview_02_main")
+cap = cv2.VideoCapture("rtsp://<user>:<password>@192.168.1.25/Preview_02_main")
 
 # Check if the camera opened successfully
 if not cap.isOpened():
@@ -41,8 +41,8 @@ cv2.imwrite(local_file, frame[:, origin:origin+new_width])
 
 shutil.copy2(local_file, save_file)
 
-key_id = str("DO00KD6F2YQCMVAWFF8N")
-secret_access_key = str("bategMqsRz+Ht4TKxPeVGleJII4C/n3VZLsC0kDxxDQ")
+key_id = str("<spaces_key>")
+secret_access_key = str("<spaces_access_key>")
 region_name = "sfo3"
 bucket_name = "stake-images"
 upload_name = "mazama/latest/stake_image.jpg"
