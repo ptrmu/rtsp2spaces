@@ -2,6 +2,8 @@
 
 Security findings, decisions, and proposals for RTSP2Spaces. Update this file as findings are resolved or the design changes.
 
+The Rust executable is currently a placeholder. The system diagram describes the intended deployment; findings below record earlier observations and decisions, while Rust capture, upload, and service protections remain planned. See [README.md](README.md#development) for the current development environment. A documentation review does not revalidate device state, account settings, or vulnerability research.
+
 ## System and assets
 
 ```text
@@ -27,7 +29,7 @@ Findings as of 2026-11-08.
 
 ### F1. Spaces access key published on GitHub — resolved (key rotated 2026-11-08)
 
-`python/from-pi/grab_and_push.py` and `python/from-pi/grab_and_push.py.sav` contain a DigitalOcean Spaces access key ID and secret in plain text. They were first committed on 2025-10-12 (`0e97a6e`) and are pushed to the public GitHub repository, so the key was treated as compromised.
+`python/from-pi/grab_and_push.py` and `python/from-pi/grab_and_push.py.sav` previously contained a DigitalOcean Spaces access key ID and secret in plain text. They were first committed on 2025-10-12 (`0e97a6e`) and are pushed to the public GitHub repository, so the key was treated as compromised.
 
 - **Done 2026-11-08:** the key was rotated in DigitalOcean.
 - **Checked 2026-11-08:** no apparent misuse of the bucket or billing during the exposure. Nothing uses Spaces until this program's upload phase, which will use the new key.
@@ -36,7 +38,7 @@ Findings as of 2026-11-08.
 
 ### F2. Camera admin passwords published on GitHub — medium
 
-`python/from-pi/grab_and_push.py`, `grab_and_push.py.sav`, and `grab_aruco.py` contain RTSP URLs with the `admin` password for `192.168.1.25` (the stake camera, same password as the secrets files) and `192.168.1.183` (a second camera, unreachable on 2026-11-08).
+`python/from-pi/grab_and_push.py`, `grab_and_push.py.sav`, and `grab_aruco.py` previously contained RTSP URLs with the `admin` password for `192.168.1.25` (the stake camera, same password as the secrets files) and `192.168.1.183` (a second camera, unreachable on 2026-11-08).
 
 - **Decision:** accepted risk for now. The camera view is public, and the camera is not reachable from the internet unless P2P cloud access or port forwarding is enabled (see F4).
 - Note that the password is the device admin password, not just a viewing password. Change it when the camera moves to the aux network (see [Network plan](#network-plan)), and use a separate low-privilege account for the Pi if the TrackMix allows snapshots from one.
@@ -69,7 +71,7 @@ Sources: [Talos](https://blog.talosintelligence.com/vuln-spotlight-reolink-camer
 
 ### F6. Camera certificate is self-signed — low
 
-The camera's HTTPS certificate cannot be verified, so the program accepts it (`accept_invalid_certs = true`). Another device on the same network could impersonate the camera and capture the password.
+The camera's HTTPS certificate cannot be verified, so the Rust design proposes accepting it (`accept_invalid_certs = true`); capture is not implemented yet. Another device on the same network could impersonate the camera and capture the password.
 
 - **Proposal:** later, pin the camera's certificate fingerprint in configuration instead of accepting any certificate. Isolating the camera on the aux network reduces the risk in the meantime.
 
@@ -79,7 +81,7 @@ The single-request capture sends the camera password as a URL query parameter. H
 
 ### F8. Secrets files ignored by name only — low
 
-`.gitignore` excludes `stake_cam_secrets.json` and `aruco_cam_secrets.json` by exact name. A secrets file with any other name would be committed.
+`.gitignore` excludes `stake_cam_secrets.json` and `aruco_cam_secrets.json` by exact name. A secrets file with any other name is not excluded by these rules and could be committed.
 
 - **Proposal:** add the pattern `*secrets*.json` to `.gitignore` and commit only `*.example.json` placeholders.
 

@@ -1,5 +1,11 @@
 # RTSP2Spaces design
 
+## Implementation status and development environment
+
+This document specifies the planned Rust implementation. No phase is implemented yet: `src/main.rs` only prints `Hello, world!`. The command examples, configuration, modules, and deployment instructions below are design targets, not available functionality.
+
+See [README.md](README.md#development) for the committed Dev Container, setup script, current toolchain observations, and verified development commands. Cross-compilation and Pi deployment are Phase 5 work.
+
 ## Architecture and conventions
 
 Use one Rust 2024 Cargo package with a thin executable and focused library modules for configuration, secrets, camera capture, temperature collection, history, drawing, and Spaces uploads.
@@ -193,7 +199,7 @@ Write images and JSON documents to a temporary file and then rename it into plac
 
 - Add `run`, which performs capture, temperature, render, and upload in order, passing the exact capture time in memory rather than re-reading it from the filename.
 - A capture, render, or upload failure stops the cycle. A temperature failure is logged and the cycle continues using existing history, because the graph should not block a fresh image. `run` still exits nonzero if any step failed.
-- Deploy without a container. Every dependency is a Rust crate (`reqwest` with `rustls`, `image`, `imageproc`, the AWS SDK with `rustls`), so the program is one self-contained executable and the Pi needs no extra packages.
+- Deploy without a container. Every dependency is a Rust crate (`reqwest` with `rustls`, `image`, `imageproc`, the AWS SDK with `rustls`), so no Python runtime is needed. A GNU target build still depends on compatible system libraries on the Pi; verify those requirements, or validate a static musl build, before documenting installation.
 - Cross-compile for the Pi in the dev container, e.g. `cargo zigbuild --release --target aarch64-unknown-linux-gnu` (or a static `aarch64-unknown-linux-musl` build), and copy the executable to `/usr/local/bin/rtsp2spaces`. Add the build and install steps to `bin/` scripts.
 - Run it from a systemd oneshot service as a dedicated unprivileged user. Keep the configuration in `/etc/rtsp2spaces/`, the secrets file there readable only by that user, and `data_dir` under `/var/lib/rtsp2spaces/`. Depend on network readiness (`network-online.target`) and set `TimeoutStartSec=` so a stalled run cannot block later runs.
 - Trigger the service from a systemd timer. A timer does not start a service that is still running, so runs never overlap.
@@ -211,7 +217,7 @@ Write images and JSON documents to a temporary file and then rename it into plac
 
 - Keep credentials out of command-line values, TOML, logs, metadata, and fixtures. The secrets file is readable only by the service user.
 - Keep unit tests alongside modules and integration tests under `tests/`. Use temporary directories, fixed clocks, fixture images, and fake external services.
-- Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --locked` for every phase. Ordinary tests require no network or real credentials.
+- Run `cargo fmt --check`, `cargo clippy --all-targets --locked -- -D warnings`, and `cargo test --locked` for every phase. Ordinary tests require no network or real credentials.
 - Commit `Cargo.lock`, and document each phase's verified commands in the README.
 
 ## Open questions
