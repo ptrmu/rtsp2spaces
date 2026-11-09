@@ -1,8 +1,8 @@
 # Security
 
-Security findings, decisions, and proposals for RTSP2Spaces. Update this file as findings are resolved or the design changes.
+Security findings, decisions, and proposals for Stakecam. Update this file as findings are resolved or the design changes.
 
-The Rust executable is currently a placeholder. The system diagram describes the intended deployment; findings below record earlier observations and decisions, while Rust capture, upload, and service protections remain planned. See [README.md](README.md#development) for the current development environment. A documentation review does not revalidate device state, account settings, or vulnerability research.
+The Rust executable implements Phase 1 capture, verified against the live camera on 2026-11-08. The system diagram describes the intended deployment; findings below record earlier observations and decisions, while uploads and service protections remain planned. See [README.md](README.md#development) for the current development environment. A documentation review does not revalidate device state, account settings, or vulnerability research.
 
 ## System and assets
 
@@ -19,7 +19,7 @@ Windows dev machine (Dev Container)  -- builds and deploys --'
 | Camera admin password (`rtsp_user`, `rtsp_pw`) | Full control of the camera: view both lenses, pan/tilt/zoom, change settings, enable services, install firmware. The image is public anyway, but the device is a foothold on the home network. | Medium; lower once the camera is isolated |
 | Camera firmware | A compromised camera can attack other devices on its network or exfiltrate video. | Medium |
 | Raspberry Pi | Holds both credentials; sits on the home network with internet access. | Medium |
-| GitHub repository (`ptrmu/rtsp2spaces`) | **Public.** Anything committed, including history, is readable by anyone. | — |
+| GitHub repository (recorded at review time as `ptrmu/rtsp2spaces`) | **Public.** Anything committed, including history, is readable by anyone. | — |
 
 The published image and metadata are public by design and are not considered sensitive.
 
@@ -71,7 +71,7 @@ Sources: [Talos](https://blog.talosintelligence.com/vuln-spotlight-reolink-camer
 
 ### F6. Camera certificate is self-signed — low
 
-The camera's HTTPS certificate cannot be verified, so the Rust design proposes accepting it (`accept_invalid_certs = true`); capture is not implemented yet. Another device on the same network could impersonate the camera and capture the password.
+The camera's HTTPS certificate cannot be verified, so the Rust design proposes accepting it (`accept_invalid_certs = true`); capture implements this opt-in setting (the default is false). Another device on the same network could impersonate the camera and capture the password.
 
 - **Proposal:** later, pin the camera's certificate fingerprint in configuration instead of accepting any certificate. Isolating the camera on the aux network reduces the risk in the meantime.
 
@@ -119,13 +119,13 @@ Steps, in order, after the program is working:
 ### Credentials
 
 - Keep credentials out of the repository, command-line values, TOML, logs, metadata, and test fixtures (DESIGN.md).
-- On the Pi, store the secrets file in `/etc/rtsp2spaces/`, owned by the service user, mode `0600`.
+- On the Pi, store `stake_cam_secrets.json` in `~/Work/stakecam/`, owned by the non-root Pi user running the service, mode `0600`. Transfer it separately from the tracked configuration and executable.
 - When rotating the Spaces key (F1), create a key limited to the one bucket if DigitalOcean offers bucket-scoped keys for the account, rather than a full-access key.
 
 ### Raspberry Pi
 
-- Run the service as a dedicated unprivileged user (DESIGN.md Phase 5).
-- Add systemd sandboxing to the service: `NoNewPrivileges=yes`, `ProtectSystem=strict`, `ReadWritePaths=/var/lib/rtsp2spaces`, `ProtectHome=yes`, `PrivateTmp=yes`, `RestrictAddressFamilies=AF_INET AF_INET6`. Verify with `systemd-analyze security rtsp2spaces.service`.
+- Run the service as the non-root Pi user who owns `~/Work/stakecam` (DESIGN.md Phase 5).
+- Add systemd sandboxing to the service: `NoNewPrivileges=yes`, `ProtectSystem=strict`, `ReadWritePaths=/home/<user>/Work/stakecam/data`, `ProtectHome=read-only`, `PrivateTmp=yes`, `RestrictAddressFamilies=AF_INET AF_INET6`. Replace `/home/<user>` with the actual home directory and create `data/` before starting the service. `ProtectHome=read-only` allows reading the executable, configuration, and secrets in the home directory; the data path is the writable exception. Verify with `systemd-analyze security stakecam.service`.
 - Use SSH keys only (disable password login) and enable `unattended-upgrades` for security updates.
 
 ### Dependencies and build

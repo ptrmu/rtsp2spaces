@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Run live camera acceptance checks (Python 3.11+, Rust toolchain required)."""
+import argparse
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import tomllib
+from urllib.parse import quote, quote_plus
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def write_config(path, config, output, **camera_overrides):
+    camera = {**config['camera'], **camera_overrides}
+    lines = [f'data_dir = {json.dumps(str(output))}']
+    for key in ('timezone', 'image_prefix'):
+        lines.append(f'{key} = {json.dumps(config[key])}')
+    lines.append('[camera]')
+    for key in ('host', 'channel', 'timeout_seconds', 'accept_invalid_certs'):
+        if key in camera:
+            lines.append(f'{key} = {json.dumps(camera[key])}')
+    path.write_text('\n'.join(lines) + '\n')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--config', type=Path, default=ROOT / 'config.toml')
+    parser.add_argument('--secrets-file', type=Path, default=ROOT / 'stake_cam_secrets.json')
+    args = parser.parse_args()
+    config_path = args.config.resolve()
+    credentials = args.secrets_file.resolve()
+    config = tomllib.loads(config_path.read_text())
+    secrets = json.loads(credentials.read_text())
+    if not all(isinstance(secrets.get(key), str) and secrets[key] for key in ('rtsp_user', 'rtsp_pw')):
+        raise RuntimeError('camera credentials must be nonempty strings')
+    tokens = [value for value in secrets.values() if isinstance(value, str) and value]
+    tokens += [quote(value, safe='') for value in tokens] + [quote_plus(value) for value in tokens]
+    print('Building stakecam...', flush=True)
+    # Cargo reports the executable path, including custom target/profile settings.
+    build = subprocess.run(['cargo', 'build', '--locked', '--bin', 'stakecam', '--message-format=json'], cwd=ROOT, capture_output=True, text=True)
+    if build.returncode:
+        raise RuntimeError('Cargo build failed; run cargo build --locked for diagnostics')
+    binary = None
+    for line in build.stdout.splitlines():
+        artifact = json.loads(line)
+        if artifact.get('reason') == 'compiler-artifact' and artifact.get('executable') and artifact['target']['name'] == 'stakecam':
+            binary = artifact['executable']
+    if binary is None:
+        raise RuntimeError('Cargo did not report the stakecam executable')
+    output = Path(config['data_dir'])
+    if not output.is_absolute():
+        output = config_path.parent / output
+    output = output / 'live-tests'
+    output.mkdir(parents=True, exist_ok=True)
+    images = Path(tempfile.mkdtemp(prefix='run-', dir=output))
+    failures = []
+
+    def run(label, cfg, secret_path, expected, diagnostic=None):
+        try:
+            result = subprocess.run([binary, 'capture', '--config', str(cfg), '--secrets-file', str(secret_path)], capture_output=True, text=True, timeout=config['camera'].get('timeout_seconds', 15) + 15)
+            combined = result.stdout + result.stderr
+            if any(token in combined for token in tokens):
+                raise RuntimeError('credential appeared in output; output suppressed')
+            if result.returncode != expected:
+                raise RuntimeError('unexpected exit status; raw output suppressed')
+            if diagnostic and diagnostic not in result.stderr:
+                raise RuntimeError('expected diagnostic missing; raw output suppressed')
+            print(f'PASS: {label}', flush=True)
+            return result
+        except (RuntimeError, subprocess.TimeoutExpired) as error:
+            reason = str(error) if isinstance(error, RuntimeError) else 'test process timed out'
+            failures.append(label)
+            print(f'FAIL: {label}: {reason}', flush=True)
+            return None
+
+    with tempfile.TemporaryDirectory(prefix='stakecam-live-') as temporary:
+        private = Path(temporary)
+        normal = private / 'capture.toml'
+        write_config(normal, config, images)
+        first = run('live JPEG capture', normal, credentials, 0, 'saved ')
+        second = run('second live JPEG capture', normal, credentials, 0, 'saved ')
+        if first and second:
+            # A boundary between minutes is legitimate: retry against the newest capture.
+            for _ in range(2):
+                if first.stdout == second.stdout:
+                    break
+                first = second
+                second = run('capture after minute boundary', normal, credentials, 0, 'saved ')
+                if second is None:
+                    break
+            if second and first.stdout == second.stdout and 'replacing existing capture' in second.stderr:
+                print('PASS: same-minute replacement warning', flush=True)
+            else:
+                failures.append('same-minute replacement warning')
+                print('FAIL: same-minute replacement could not be verified', flush=True)
+        wrong = private / 'wrong_secrets.json'
+        bad_password = 'deliberately-invalid-live-test-password'
+        tokens.append(bad_password)
+        with open(wrong, 'w', opener=lambda path, flags: os.open(path, flags, 0o600)) as stream:
+            json.dump({'rtsp_user': secrets['rtsp_user'], 'rtsp_pw': bad_password}, stream)
+        run('wrong password (one attempt)', normal, wrong, 1, 'camera API error')
+        unreachable = private / 'unreachable.toml'
+        write_config(unreachable, config, images, host='192.0.2.1', timeout_seconds=2)
+        run('unreachable camera', unreachable, credentials, 1, 'camera request failed')
+        blocked = private / 'blocked'
+        blocked.write_text('regular file prevents directory creation')
+        invalid_output = private / 'invalid-output.toml'
+        write_config(invalid_output, config, blocked)
+        run('output directory failure', invalid_output, credentials, 1, 'cannot create capture directory')
+    print(f'Images retained for visual inspection: {images}')
+    if failures:
+        print(f'{len(failures)} live check(s) failed.', file=sys.stderr)
+        return 1
+    print('All live checks passed. Inspect the retained JPEGs to confirm framing and image quality.')
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, KeyError, RuntimeError):
+        # Parsing errors can contain secret input; never echo their contents.
+        print('Live test setup failed. Check configuration, secrets, and toolchain; details suppressed to protect credentials.', file=sys.stderr)
+        sys.exit(1)

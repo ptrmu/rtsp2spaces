@@ -1,8 +1,8 @@
-# RTSP2Spaces design
+# Stakecam design
 
 ## Implementation status and development environment
 
-This document specifies the planned Rust implementation. No phase is implemented yet: `src/main.rs` only prints `Hello, world!`. The command examples, configuration, modules, and deployment instructions below are design targets, not available functionality.
+This document specifies the planned Rust implementation. Phase 1 capture is implemented and verified with automated tests and live-camera acceptance on 2026-11-08 (see README.md). Later commands, configuration sections, and deployment instructions below remain design targets. See README.md for the available capture command and its configuration defaults.
 
 See [README.md](README.md#development) for the committed Dev Container, setup script, current toolchain observations, and verified development commands. Cross-compilation and Pi deployment are Phase 5 work.
 
@@ -17,11 +17,11 @@ Development is incremental: each phase adds one working command, and the phases 
 ### Commands
 
 ```sh
-rtsp2spaces capture     --config config.toml --secrets-file secrets.json
-rtsp2spaces temperature --config config.toml --secrets-file secrets.json
-rtsp2spaces render      --config config.toml --input image.jpg --output annotated.jpg [--at <RFC3339-time>]
-rtsp2spaces upload      --config config.toml --secrets-file secrets.json --input annotated.jpg [--at <RFC3339-time>]
-rtsp2spaces run         --config config.toml --secrets-file secrets.json
+stakecam capture     --config config.toml --secrets-file secrets.json
+stakecam temperature --config config.toml --secrets-file secrets.json
+stakecam render      --config config.toml --input image.jpg --output annotated.jpg [--at <RFC3339-time>]
+stakecam upload      --config config.toml --secrets-file secrets.json --input annotated.jpg [--at <RFC3339-time>]
+stakecam run         --config config.toml --secrets-file secrets.json
 ```
 
 `run` performs one complete cycle: capture, temperature, render, and upload. It passes the files and the exact capture time between steps in memory, so the user never names a capture. The individual commands exist for development, testing, and recovery; they take the capture time from the image filename, or from `--at` when given.
@@ -200,8 +200,8 @@ Write images and JSON documents to a temporary file and then rename it into plac
 - Add `run`, which performs capture, temperature, render, and upload in order, passing the exact capture time in memory rather than re-reading it from the filename.
 - A capture, render, or upload failure stops the cycle. A temperature failure is logged and the cycle continues using existing history, because the graph should not block a fresh image. `run` still exits nonzero if any step failed.
 - Deploy without a container. Every dependency is a Rust crate (`reqwest` with `rustls`, `image`, `imageproc`, the AWS SDK with `rustls`), so no Python runtime is needed. A GNU target build still depends on compatible system libraries on the Pi; verify those requirements, or validate a static musl build, before documenting installation.
-- Cross-compile for the Pi in the dev container, e.g. `cargo zigbuild --release --target aarch64-unknown-linux-gnu` (or a static `aarch64-unknown-linux-musl` build), and copy the executable to `/usr/local/bin/rtsp2spaces`. Add the build and install steps to `bin/` scripts.
-- Run it from a systemd oneshot service as a dedicated unprivileged user. Keep the configuration in `/etc/rtsp2spaces/`, the secrets file there readable only by that user, and `data_dir` under `/var/lib/rtsp2spaces/`. Depend on network readiness (`network-online.target`) and set `TimeoutStartSec=` so a stalled run cannot block later runs.
+- Cross-compile for the Pi in the dev container, e.g. `cargo zigbuild --release --target aarch64-unknown-linux-gnu` (or a static `aarch64-unknown-linux-musl` build), and copy the executable to `~/Work/stakecam/stakecam` on the Pi. Add the build and install steps to `bin/` scripts.
+- Run it from a systemd oneshot service as the non-root Pi user who owns `~/Work/stakecam`. Keep the executable, shared tracked `config.toml`, private untracked `stake_cam_secrets.json` (mode `0600`), and generated `data/` in that directory. Keep `data_dir = "data"` so the same configuration works in development and deployment; copy secrets separately. Set `User=`, `WorkingDirectory=`, and absolute paths in `ExecStart=` using the actual Pi username and home directory; do not use literal `~` in unit paths. Create `data/` owned by that user before enabling the service. Depend on network readiness (`network-online.target`) and set `TimeoutStartSec=` so a stalled run cannot block later runs.
 - Trigger the service from a systemd timer. A timer does not start a service that is still running, so runs never overlap.
 - Measure total cycle duration on the Pi before finalizing the interval and timeout.
 

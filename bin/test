@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Run all automated checks without contacting the camera or reading credentials.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+failures=0
+check() {
+  printf '\n==> %s\n' "$1"
+  shift
+  if ! "$@"; then
+    failures=$((failures + 1))
+  fi
+}
+
+check "Formatting" cargo fmt --check
+check "Clippy" cargo clippy --all-targets --all-features --locked -- -D warnings
+# Default cargo test targets include unit, integration, and documentation tests.
+check "Tests" cargo test --all-features --locked
+
+if [ "$failures" -ne 0 ]; then
+  printf '\n%d check(s) failed.\n' "$failures"
+  exit 1
+fi
+printf '\nAll automated checks passed.\n'

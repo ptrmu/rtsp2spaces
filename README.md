@@ -1,6 +1,6 @@
-# RTSP2Spaces
+# Stakecam
 
-RTSP2Spaces is being rewritten to capture a still image from a Reolink camera (originally over RTSP, hence the name; now through its HTTPS snapshot API), draw a 24-hour temperature graph on it, and upload the JPEG and JSON metadata to DigitalOcean Spaces for display on a website. The planned deployment runs each cycle from a systemd timer on a Raspberry Pi.
+Stakecam is being rewritten to capture a still image from a Reolink camera (through its HTTPS snapshot API), draw a 24-hour temperature graph on it, and upload the JPEG and JSON metadata to DigitalOcean Spaces for display on a website. The planned deployment runs each cycle from a systemd timer on a Raspberry Pi.
 
 ```text
 camera -> capture -> render temperature graph -> upload -> DigitalOcean Spaces -> website
@@ -10,7 +10,7 @@ temperature sensor -> temperature history (local files)
 
 ## Status
 
-The project is being rewritten in Rust. The Rust package is a placeholder; no phase is implemented yet. [DESIGN.md](DESIGN.md) defines the commands, configuration, and implementation phases. The earlier Python implementation is kept for reference in [`python/`](python/).
+The project is being rewritten in Rust. Phase 1 camera capture is implemented and verified with automated fixture tests and live-camera checks on 2026-11-08. Temperature collection, rendering, uploading, and deployment remain planned. [DESIGN.md](DESIGN.md) defines the commands, configuration, and implementation phases. The earlier Python implementation is kept for reference in [`python/`](python/).
 
 ## Development
 
@@ -27,7 +27,7 @@ The committed environment uses:
 
 - Container image `mcr.microsoft.com/devcontainers/rust:2-1-trixie` (Debian 13 / Trixie).
 - VS Code extension `rust-lang.rust-analyzer`.
-- A single Rust 2024 binary package, `rtsp2spaces`, with no dependencies yet; build output goes into `target/`.
+- A single Rust 2024 package, `stakecam`, with a thin binary and library modules; dependencies are declared in `Cargo.toml` and pinned in `Cargo.lock`; build output goes into `target/`.
 - The image's default Rust toolchain. No `rust-toolchain.toml` pins a compiler version, and the container image tag can receive updates. On 2026-11-08, this workspace runs Rust and Cargo 1.99.1 on `x86_64-unknown-linux-gnu`; this is an observed version, not a requirement.
 
 When the container is created it runs [`bin/setup.sh`](bin/setup.sh), which installs the Rust components, fetches dependencies, and runs the formatting, clippy, and test checks. Run it again by hand at any time, including before committing:
@@ -40,20 +40,74 @@ The setup script runs `cargo fetch --locked`, `cargo fmt --check`, `cargo clippy
 
 Pi cross-compilation tools, target installation, deployment scripts, and systemd units are not configured yet; they are planned for Phase 5 in DESIGN.md.
 
-Ordinary tests need no camera, sensor, network, or credentials once dependencies are cached. There are currently no tests in the placeholder package. Testing against real devices requires the container to reach the camera on the local network and, for uploads, Spaces credentials.
+Run all automated checks with:
+
+```sh
+bin/test
+```
+
+This runs formatting, Clippy for all targets and features, and all unit, integration, and documentation tests with all features enabled and the lockfile enforced. It runs every check even if an earlier check fails, and exits nonzero on failure. It can be invoked from any working directory by its path. Unlike `bin/setup.sh`, it does not install components or explicitly fetch dependencies; Cargo may still download missing dependencies. Live-camera acceptance checks are separate and are not run by this command.
+
+Ordinary tests need no camera, sensor, network, or credentials once dependencies are cached. Tests generate fixture JPEGs and use fake capture sources. Testing against real devices requires the container to reach the camera on the local network and, for uploads, Spaces credentials.
 
 ## Usage
 
-Run the current placeholder from the repository root:
+Use the shared `config.toml` and create a private `stake_cam_secrets.json` as described below. The configuration contains no credentials and is intended to be tracked; `config.example.toml` remains a reference template. Then run:
 
 ```sh
-cargo run --locked
+cargo run --locked -- capture --config config.toml --secrets-file stake_cam_secrets.json
 ```
 
-It prints `Hello, world!` and exits. Camera capture, configuration parsing, temperature collection, rendering, and uploading are not implemented.
+The command requests one HTTPS snapshot, checks and decodes the JPEG, center-crops its width to `min(width, height)` while preserving height, and saves `<data_dir>/files/<image_prefix><YYYYMMDDHHMM>.jpg`. It prints the saved path to stdout and logs to stderr. Repeated captures within the same local minute (including the repeated DST hour) replace the image with a warning. Saving uses a temporary file and rename.
 
-Commands are documented here as each phase is implemented and verified. See [DESIGN.md](DESIGN.md) for the planned interface.
+`data_dir`, `timezone` (an IANA name), `image_prefix` (no path separators), and `[camera].host` are required. Relative `data_dir` resolves against the configuration file; command-line paths resolve against the working directory. Camera defaults are `channel = 1`, `timeout_seconds = 15` (must be positive), and `accept_invalid_certs = false`. The example explicitly enables the camera's self-signed certificate. `host` accepts a hostname or IP address with an optional port, without a scheme or path. Responses are limited to 32 MiB; redirects are rejected.
+
+```sh
+cargo run --locked -- capture --help
+cargo run --locked -- --verbose capture --config config.toml --secrets-file stake_cam_secrets.json
+```
+
+Failures exit nonzero; command-line usage errors exit 2. Debug output excludes HTTP library tracing and authenticated URLs. No later-phase commands are available. See [DESIGN.md](DESIGN.md) for the planned interface.
+
+Run the live acceptance suite (requires Python 3.11+, the Rust toolchain, camera connectivity, and real credentials):
+
+```sh
+bin/test-live
+# Optional alternate files; relative arguments resolve against your working directory:
+bin/test-live --config config.toml --secrets-file stake_cam_secrets.json
+```
+
+The script builds the executable and tests capture, same-minute replacement warnings, one deliberately wrong password, an unreachable camera address, and an output-directory failure. It suppresses raw command output and checks it for credential leaks. Temporary configurations and invalid credentials are removed automatically; images remain under `<data_dir>/live-tests/run-*/files/` for visual inspection. It leaves the normal capture files and configuration alone and exits nonzero if any check fails. A minute-boundary capture is retried to verify replacement.
+
+Live-camera checks passed from the Dev Container on 2026-11-08: a saved 1080×1080 JPEG was visually inspected, two captures within one local minute replaced the same file with a warning, a wrong password produced the camera API error, an unreachable address timed out, and an output directory under `/proc` failed cleanly. The captured output contained none of the supplied secret values. Pi deployment filesystem permissions remain a Phase 5 check.
+
+## Planned Pi layout
+
+Phase 5 will deploy into `~/Work/stakecam` under the Pi user's home directory:
+
+```text
+~/Work/stakecam/
+  stakecam             release executable
+  config.toml             same configuration as development
+  stake_cam_secrets.json  private, untracked, mode 0600
+  data/                   generated output, untracked
+```
+
+Keep `data_dir = "data"` in both environments. It resolves against `config.toml`, so no configuration edits are needed during deployment. Both environments must be able to reach the configured camera address. Copy secrets separately and preserve their permissions.
+
+The planned systemd service runs as the non-root Pi user with this directory as its working directory. Unit paths must use the actual absolute home path (for example `/home/<user>/Work/stakecam`), because systemd path settings do not expand `~`. Deployment scripts and units are still Phase 5 work.
 
 ## Secrets
 
-The planned Rust commands will read credentials from a JSON secrets file passed with `--secrets-file`, never from configuration or command-line credential values. The placeholder does not read secrets. Keep credentials out of the repository. Currently, `.gitignore` excludes only `stake_cam_secrets.json` and `aruco_cam_secrets.json`; other secrets filenames need explicit exclusion (see SECURITY.md F8). The fields are `rtsp_user`, `rtsp_pw`, `spaces_key`, and `spaces_access_key`. See [SECURITY.md](SECURITY.md) for findings, the network plan, and hardening proposals.
+Capture opens the JSON secrets file read-only and requires nonempty `rtsp_user` and `rtsp_pw` strings. Existing files may also contain `spaces_key` and `spaces_access_key`; capture ignores those fields. Never pass credentials as command-line values or put them in TOML, logs, or tracked files.
+
+Create `stake_cam_secrets.json` locally with this structure, replacing the placeholders:
+
+```json
+{
+  "rtsp_user": "REPLACE_WITH_CAMERA_USER",
+  "rtsp_pw": "REPLACE_WITH_CAMERA_PASSWORD"
+}
+```
+
+Restrict access with `chmod 600 stake_cam_secrets.json`. `.gitignore` excludes this filename and `aruco_cam_secrets.json`; other secrets filenames need explicit exclusion (see SECURITY.md F8). See [SECURITY.md](SECURITY.md) for findings, the network plan, and hardening proposals.

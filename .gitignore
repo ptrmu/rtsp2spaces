@@ -14,3 +14,4 @@ files_aruco/
 image_stg/
 mazama_stake.json
 /target/
+/data/

@@ -1,0 +1,11 @@
+# Shared by development and the Pi. Relative paths resolve against this file.
+data_dir = "data"
+timezone = "America/Los_Angeles"
+image_prefix = "mazama_stake_"
+
+[camera]
+host = "192.168.1.25"
+channel = 1
+timeout_seconds = 15
+# Opt in only for the camera's self-signed certificate.
+accept_invalid_certs = true
