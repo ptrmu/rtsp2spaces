@@ -1,5 +1,4 @@
 use anyhow::{Context, Result, ensure};
-use chrono_tz::Tz;
 use serde::Deserialize;
 use std::{
     fs,
@@ -9,9 +8,9 @@ use std::{
 #[derive(Deserialize)]
 pub struct Config {
     pub data_dir: PathBuf,
-    pub timezone: String,
     pub image_prefix: String,
     pub camera: CameraConfig,
+    pub temperature: Option<crate::temperature::TemperatureConfig>,
 }
 #[derive(Deserialize)]
 pub struct CameraConfig {
@@ -36,7 +35,14 @@ impl Config {
         let mut config: Self = toml::from_str(&text).map_err(|_| {
             anyhow::anyhow!("invalid TOML configuration or missing required setting")
         })?;
-        config.timezone()?;
+        if let Some(temperature) = &mut config.temperature {
+            temperature.validate()?;
+            if let Some(fixture) = &mut temperature.fixture_file
+                && fixture.is_relative()
+            {
+                *fixture = path.parent().unwrap_or(Path::new(".")).join(&*fixture);
+            }
+        }
         ensure!(
             !config.data_dir.as_os_str().is_empty(),
             "data_dir must not be empty"
@@ -56,10 +62,5 @@ impl Config {
                 .join(&config.data_dir);
         }
         Ok(config)
-    }
-    pub fn timezone(&self) -> Result<Tz> {
-        self.timezone
-            .parse()
-            .map_err(|_| anyhow::anyhow!("invalid configured timezone"))
     }
 }

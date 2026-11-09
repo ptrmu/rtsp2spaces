@@ -1,6 +1,6 @@
 # Working in this repository
 
-- [README.md](README.md) documents the current development environment and verified usage; Phase 1 capture is implemented and verified with live-camera checks.
+- [README.md](README.md) documents the current development environment and verified usage; Phase 1 capture and Phase 2 temperature collection are implemented and verified with live checks.
 - [DESIGN.md](DESIGN.md) is the source of truth for commands, configuration, file layout, and phases.
 - Implement only the phase the user requests. Stop at the phase's review stop; do not advance automatically.
 - Run `cargo fmt --check`, `cargo clippy --all-targets --locked -- -D warnings`, and `cargo test --locked` before reporting a phase complete.

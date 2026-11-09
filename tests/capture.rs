@@ -28,7 +28,11 @@ fn fixture(width: u32, height: u32) -> Fixture {
 }
 fn config(directory: &Path) -> Config {
     let path = directory.join("config.toml");
-    fs::write(&path, "data_dir = 'data'\ntimezone = 'America/Los_Angeles'\nimage_prefix = 'mazama_stake_'\n[camera]\nhost = '127.0.0.1'\n").unwrap();
+    fs::write(
+        &path,
+        "data_dir = 'data'\nimage_prefix = 'mazama_stake_'\n[camera]\nhost = '127.0.0.1'\n",
+    )
+    .unwrap();
     Config::load(&path).unwrap()
 }
 #[test]
@@ -41,7 +45,7 @@ fn crops_center_and_atomically_replaces_same_minute() {
         result.path,
         directory
             .path()
-            .join("data/files/mazama_stake_202611081521.jpg")
+            .join("data/files/mazama_stake_202611082321.jpg")
     );
     assert_eq!(result.captured_at, at);
     assert!(!result.replaced);
@@ -57,15 +61,17 @@ fn crops_center_and_atomically_replaces_same_minute() {
     );
 }
 #[test]
-fn repeated_dst_hour_replaces_same_filename() {
+fn dst_fallback_instants_have_distinct_utc_filenames() {
     let directory = tempfile::tempdir().unwrap();
     let config = config(directory.path());
     let first = Utc.with_ymd_and_hms(2026, 11, 1, 8, 30, 0).unwrap();
     let second = Utc.with_ymd_and_hms(2026, 11, 1, 9, 30, 0).unwrap();
     let a = capture(&fixture(10, 10), &config, first).unwrap();
     let b = capture(&fixture(10, 10), &config, second).unwrap();
-    assert_eq!(a.path, b.path);
-    assert!(b.replaced);
+    assert_ne!(a.path, b.path);
+    assert!(a.path.ends_with("mazama_stake_202611010830.jpg"));
+    assert!(b.path.ends_with("mazama_stake_202611010930.jpg"));
+    assert!(!b.replaced);
 }
 #[test]
 fn bad_responses_and_failed_source_leave_no_output() {
@@ -138,7 +144,6 @@ fn validates_settings_and_defaults() {
     let path = directory.path().join("config.toml");
     let original = fs::read_to_string(&path).unwrap();
     for invalid in [
-        original.replace("America/Los_Angeles", "invalid-zone"),
         original.replace("mazama_stake_", "../escape"),
         format!("{original}timeout_seconds = 0\n"),
     ] {

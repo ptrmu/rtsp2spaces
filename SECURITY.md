@@ -2,7 +2,7 @@
 
 Security findings, decisions, and proposals for Stakecam. Update this file as findings are resolved or the design changes.
 
-The Rust executable implements Phase 1 capture, verified against the live camera on 2026-11-08. The system diagram describes the intended deployment; findings below record earlier observations and decisions, while uploads and service protections remain planned. See [README.md](README.md#development) for the current development environment. A documentation review does not revalidate device state, account settings, or vulnerability research.
+The Rust executable implements Phase 1 capture, verified against the live camera on 2026-11-08. Phase 2 temperature collection reads Ambient Weather using account API keys stored in the private secrets file; these authenticated API URLs must also stay out of logs. The system diagram describes the intended deployment; findings below record earlier observations and decisions, while uploads and service protections remain planned. See [README.md](README.md#development) for the current development environment. A documentation review does not revalidate device state, account settings, or vulnerability research.
 
 ## System and assets
 

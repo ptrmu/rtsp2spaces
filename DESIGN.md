@@ -2,7 +2,7 @@
 
 ## Implementation status and development environment
 
-This document specifies the planned Rust implementation. Phase 1 capture is implemented and verified with automated tests and live-camera acceptance on 2026-11-08 (see README.md). Later commands, configuration sections, and deployment instructions below remain design targets. See README.md for the available capture command and its configuration defaults.
+This document specifies the planned Rust implementation. Phase 1 capture is implemented and verified with automated tests and live-camera acceptance on 2026-11-08 (see README.md). Phase 2 temperature collection and history seeding are also implemented and verified against Ambient Weather. Rendering, uploading, and deployment remain design targets. See README.md for available commands and configuration defaults.
 
 See [README.md](README.md#development) for the committed Dev Container, setup script, current toolchain observations, and verified development commands. Cross-compilation and Pi deployment are Phase 5 work.
 
@@ -36,7 +36,6 @@ Illustrative configuration (final keys are fixed as each phase is implemented):
 
 ```toml
 data_dir = "data"
-timezone = "America/Los_Angeles"  # used for local image filenames
 image_prefix = "mazama_stake_"
 metadata_file = "mazama_stake.json"  # local copy of the public metadata
 
@@ -47,8 +46,10 @@ timeout_seconds = 15
 accept_invalid_certs = true   # the camera's HTTPS certificate is self-signed
 
 [temperature]
-source = "fixture"            # until the sensor API is known
-sampling_interval_minutes = 10
+source = "ambient"
+mac_address = "94:3C:C6:45:02:5F"
+timeout_seconds = 15
+sampling_interval_minutes = 5
 
 [overlay]
 height_fraction = 0.12
@@ -79,10 +80,10 @@ data/
   temperature/<UTC-date>.jsonl               temperature history, one reading per line
 ```
 
-Image names follow the Python convention: `<image_prefix><YYYYMMDDHHMM>.jpg`, in the configured `timezone`, to the minute. The timezone comes from configuration rather than the host clock, so filenames do not depend on how the Pi is set up. Rendered images append `_annotated` to the stem.
+Image names use `<image_prefix><YYYYMMDDHHMM>.jpg`, in UTC to the minute, independent of the host timezone. There is no timezone configuration. Older local-time filenames are not automatically migrated; convert those timestamps to UTC or supply their actual capture instant with `--at` when processing them. Rendered images append `_annotated` to the stem.
 
-- A capture in the same minute as an existing image, including the repeated hour when daylight saving time ends, replaces that image and logs a warning.
-- There is no per-image sidecar. Dimensions are read from the JPEG. The capture time is parsed from the 12-digit timestamp in the filename; `--at` overrides it for images whose names do not contain one. A local time that occurs twice when clocks fall back resolves to the earlier instant.
+- A capture in the same UTC minute as an existing image replaces that image and logs a warning.
+- There is no per-image sidecar. Dimensions are read from the JPEG. The capture time is parsed from the 12-digit timestamp in the filename; `--at` overrides it for images whose names do not contain one. Filename timestamps are interpreted as UTC; daylight saving changes introduce no ambiguity.
 
 Write images and JSON documents to a temporary file and then rename it into place, so a partly written file never appears under its final name.
 
@@ -110,7 +111,7 @@ Write images and JSON documents to a temporary file and then rename it into plac
 ### Independent acceptance
 
 - Run against the real camera and inspect the saved JPEG.
-- Confirm dimensions, crop, filenames in the configured timezone, and replacement with a warning on repeated captures within a minute.
+- Confirm dimensions, crop, UTC filenames, and replacement with a warning on repeated captures within a minute.
 - Test unreachable camera, wrong password, and unwritable output errors, and confirm no error message contains the password.
 - Automated tests use fixture images and a fake capture source; they require no camera.
 
@@ -121,8 +122,9 @@ Write images and JSON documents to a temporary file and then rename it into plac
 ### Implementation
 
 - Introduce a replaceable temperature source returning observation time, collection time, source identifier, and temperature normalized to Celsius.
-- Develop using an explicitly selected fixture source until the sensor API is known.
-- Implement the real adapter once endpoint, authentication, response format, units, and timestamp behavior are available.
+- Support an explicitly selected fixture source for offline development.
+- Read Ambient Weather through `https://rt.ambientweather.net/v1/devices` for the latest station reading and `/v1/devices/<MAC>` for history. Authenticate with `ambient_api_key` and `ambient_application_key` from the secrets file, keep authenticated URLs out of diagnostics, convert `tempf` to Celsius, and interpret `dateutc` as UTC milliseconds.
+- `temperature --history-hours 24` seeds the rolling day in addition to the latest reading; values 0–24 are accepted. Page history backward using `endDate` with up to 288 readings per request and wait at least 1.1 seconds between requests.
 - Append each reading as one JSON line to `data/temperature/<UTC-date>.jsonl`, where the date is the observation date: `{"source": "...", "observed_at": "<RFC3339>", "collected_at": "<RFC3339>", "celsius": -1.5}`.
 - Write each line with a single append. Skip a reading whose source and observation time already appear in that day's file.
 - Readers skip malformed lines with a warning, so a crash during an append cannot block rendering.
@@ -222,6 +224,6 @@ Write images and JSON documents to a temporary file and then rename it into plac
 
 ## Open questions
 
-- **Temperature sensor.** Endpoint, authentication, response format, units, and timestamp behavior.
+- **Temperature source resolved.** Ambient Weather station Oncrr; account API access and current/history readings verified. Local station access is not needed.
 - **Deployment details.** Pi model, capture interval, and timeouts.
 - **Python reference.** `python/from-pi/rtsp2spaces.py` and `python/from-pi-also/rtsp2spaces.py` differ; which one reflects what runs on the Pi today.

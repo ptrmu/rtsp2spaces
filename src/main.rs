@@ -4,7 +4,10 @@ use stakecam::{camera::Camera, config::Config, secrets::Secrets};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(version, about = "Capture a Reolink camera snapshot")]
+#[command(
+    version,
+    about = "Capture camera snapshots and collect temperature history"
+)]
 struct Cli {
     #[arg(long, global = true)]
     verbose: bool,
@@ -13,6 +16,15 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    Temperature {
+        #[arg(long)]
+        config: PathBuf,
+        #[arg(long)]
+        secrets_file: PathBuf,
+        /// Import recent history in addition to the latest reading (maximum 24 hours).
+        #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=24))]
+        history_hours: u32,
+    },
     Capture {
         #[arg(long)]
         config: PathBuf,
@@ -22,6 +34,47 @@ enum Command {
 }
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
+        Command::Temperature {
+            config,
+            secrets_file,
+            history_hours,
+        } => {
+            let config = Config::load(&config)?;
+            let settings = config
+                .temperature
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("missing [temperature] configuration"))?;
+            let now = chrono::Utc::now();
+            let (_, paths) = match settings.source.as_str() {
+                "ambient" => {
+                    let secrets = Secrets::load(&secrets_file)?;
+                    stakecam::temperature::collect(
+                        &stakecam::temperature::Ambient {
+                            config: settings,
+                            secrets: &secrets,
+                        },
+                        &config.data_dir,
+                        now,
+                        history_hours,
+                    )?
+                }
+                "fixture" => stakecam::temperature::collect(
+                    &stakecam::temperature::FixtureSource(
+                        settings
+                            .fixture_file
+                            .clone()
+                            .ok_or_else(|| anyhow::anyhow!("missing fixture_file"))?,
+                    ),
+                    &config.data_dir,
+                    now,
+                    history_hours,
+                )?,
+                _ => anyhow::bail!("unsupported temperature source"),
+            };
+            for path in paths {
+                println!("{}", path.display());
+            }
+        }
         Command::Capture {
             config,
             secrets_file,

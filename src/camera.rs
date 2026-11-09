@@ -37,6 +37,10 @@ impl Camera<'_> {
 }
 impl CaptureSource for Camera<'_> {
     fn capture(&self) -> Result<Vec<u8>> {
+        ensure!(
+            !self.secrets.rtsp_user.is_empty() && !self.secrets.rtsp_pw.is_empty(),
+            "camera credentials must not be empty"
+        );
         let client = Client::builder()
             .timeout(Duration::from_secs(self.config.timeout_seconds))
             .danger_accept_invalid_certs(self.config.accept_invalid_certs)
@@ -117,6 +121,7 @@ mod tests {
         let secrets = Secrets {
             rtsp_user: "test-user".into(),
             rtsp_pw: "test &?/#% password".into(),
+            ..Default::default()
         };
         let url = Camera {
             config: &config,
@@ -154,6 +159,7 @@ mod response_tests {
         let secrets = Secrets {
             rtsp_user: "fixture-user".into(),
             rtsp_pw: "fixture-\"password".into(),
+            ..Default::default()
         };
         let camera = Camera {
             config: &config,

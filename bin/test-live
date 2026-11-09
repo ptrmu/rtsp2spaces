@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def write_config(path, config, output, **camera_overrides):
     camera = {**config['camera'], **camera_overrides}
     lines = [f'data_dir = {json.dumps(str(output))}']
-    for key in ('timezone', 'image_prefix'):
+    for key in ('image_prefix',):
         lines.append(f'{key} = {json.dumps(config[key])}')
     lines.append('[camera]')
     for key in ('host', 'channel', 'timeout_seconds', 'accept_invalid_certs'):

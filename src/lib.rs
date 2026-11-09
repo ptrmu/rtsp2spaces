@@ -1,6 +1,7 @@
 pub mod camera;
 pub mod config;
 pub mod secrets;
+pub mod temperature;
 
 use anyhow::{Context, Result, ensure};
 use camera::CaptureSource;
@@ -34,7 +35,7 @@ pub fn capture(source: &impl CaptureSource, config: &Config, at: DateTime<Utc>) 
     let path = directory.join(format!(
         "{}{}.jpg",
         config.image_prefix,
-        at.with_timezone(&config.timezone()?).format("%Y%m%d%H%M")
+        at.format("%Y%m%d%H%M")
     ));
     let mut temporary =
         tempfile::NamedTempFile::new_in(&directory).context("cannot create temporary image")?;
