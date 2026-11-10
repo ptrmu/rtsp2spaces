@@ -1,47 +1,83 @@
 pub mod camera;
 pub mod config;
+pub mod runner;
 pub mod secrets;
 pub mod temperature;
 
-use anyhow::{Context, Result, ensure};
-use camera::CaptureSource;
+use anyhow::{Context, Result};
+use camera::FetchedImage;
 use chrono::{DateTime, Utc};
-use config::Config;
-use image::{ImageFormat, ImageReader};
+use config::{CameraId, Crop};
+use image::{ImageFormat, ImageReader, Limits};
 use std::{
     fs,
     io::{Cursor, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
+pub struct ProcessedImage {
+    pub camera: CameraId,
+    pub captured_at: DateTime<Utc>,
+    pub jpeg: Vec<u8>,
+}
 pub struct Capture {
+    pub camera: CameraId,
     pub path: PathBuf,
     pub captured_at: DateTime<Utc>,
     pub replaced: bool,
 }
-pub fn capture(source: &impl CaptureSource, config: &Config, at: DateTime<Utc>) -> Result<Capture> {
-    let bytes = source.capture()?;
-    ensure!(
-        image::guess_format(&bytes).ok() == Some(ImageFormat::Jpeg),
-        "capture source did not return a JPEG"
+
+pub fn process(image: FetchedImage, crop: Crop) -> Result<ProcessedImage> {
+    camera::validate_jpeg(&image.jpeg)?;
+    let mut reader = ImageReader::with_format(Cursor::new(image.jpeg), ImageFormat::Jpeg);
+    let mut limits = Limits::default();
+    limits.max_image_width = Some(8192);
+    limits.max_image_height = Some(8192);
+    limits.max_alloc = Some(256 * 1024 * 1024);
+    reader.limits(limits);
+    let image_pixels = reader.decode().context("cannot decode camera JPEG")?;
+    let pixels = match crop {
+        Crop::None => image_pixels,
+        Crop::CenterSquare => {
+            // Preserve the existing Stake width-crop behavior, including portrait images.
+            let width = image_pixels.width().min(image_pixels.height());
+            image_pixels.crop_imm(
+                (image_pixels.width() - width) / 2,
+                0,
+                width,
+                image_pixels.height(),
+            )
+        }
+    };
+    log::info!(
+        "{}: processed {}x{} capture",
+        image.camera,
+        pixels.width(),
+        pixels.height()
     );
-    let image = ImageReader::with_format(Cursor::new(bytes), ImageFormat::Jpeg)
-        .decode()
-        .context("cannot decode camera JPEG")?;
-    let width = image.width().min(image.height());
-    let cropped = image.crop_imm((image.width() - width) / 2, 0, width, image.height());
-    let directory = config.data_dir.join("files");
+    let mut encoded = Cursor::new(Vec::new());
+    pixels
+        .write_to(&mut encoded, ImageFormat::Jpeg)
+        .context("cannot encode capture JPEG")?;
+    Ok(ProcessedImage {
+        camera: image.camera,
+        captured_at: image.captured_at,
+        jpeg: encoded.into_inner(),
+    })
+}
+pub fn save(image: ProcessedImage, data_dir: &Path) -> Result<Capture> {
+    let directory = data_dir.join("files");
     fs::create_dir_all(&directory).context("cannot create capture directory")?;
     let path = directory.join(format!(
-        "{}{}.jpg",
-        config.image_prefix,
-        at.format("%Y%m%d%H%M")
+        "{}_{}z.jpg",
+        image.camera.stem(),
+        image.captured_at.format("%Y%m%d%H%M%S")
     ));
     let mut temporary =
         tempfile::NamedTempFile::new_in(&directory).context("cannot create temporary image")?;
-    cropped
-        .write_to(temporary.as_file_mut(), ImageFormat::Jpeg)
-        .context("cannot encode capture JPEG")?;
+    temporary
+        .write_all(&image.jpeg)
+        .context("cannot write capture JPEG")?;
     temporary.flush().context("cannot flush capture JPEG")?;
     let replaced = path.exists();
     temporary
@@ -51,10 +87,10 @@ pub fn capture(source: &impl CaptureSource, config: &Config, at: DateTime<Utc>) 
     if replaced {
         log::warn!("replacing existing capture {}", path.display());
     }
-    log::info!("saved {}x{} capture", cropped.width(), cropped.height());
     Ok(Capture {
+        camera: image.camera,
         path,
-        captured_at: at,
+        captured_at: image.captured_at,
         replaced,
     })
 }

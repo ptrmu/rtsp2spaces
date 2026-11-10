@@ -1,100 +1,79 @@
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use clap::{Parser, Subcommand};
-use stakecam::{camera::Camera, config::Config, secrets::Secrets};
-use std::path::PathBuf;
+use stakecam::{
+    config::{CameraId, Config, TaskId},
+    runner::{self, Sources},
+    secrets::Secrets,
+};
+use std::{path::PathBuf, sync::Arc};
 
 #[derive(Parser)]
 #[command(
     version,
-    about = "Capture camera snapshots and collect temperature history"
+    about = "Capture configured cameras and collect temperature history"
 )]
 struct Cli {
     #[arg(long, global = true)]
     verbose: bool,
+    #[arg(long, global = true, default_value = "config.toml")]
+    config: PathBuf,
+    #[arg(long, global = true, default_value = "stake_cam_secrets.json")]
+    secrets_file: PathBuf,
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
 }
 #[derive(Subcommand)]
 enum Command {
     Temperature {
-        #[arg(long)]
-        config: PathBuf,
-        #[arg(long)]
-        secrets_file: PathBuf,
-        /// Import recent history in addition to the latest reading (maximum 24 hours).
         #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=24))]
         history_hours: u32,
     },
     Capture {
-        #[arg(long)]
-        config: PathBuf,
-        #[arg(long)]
-        secrets_file: PathBuf,
+        #[arg(long, required = true, value_enum)]
+        camera: Vec<CameraId>,
     },
 }
-fn run(cli: Cli) -> Result<()> {
-    match cli.command {
-        Command::Temperature {
-            config,
-            secrets_file,
-            history_hours,
-        } => {
-            let config = Config::load(&config)?;
-            let settings = config
-                .temperature
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("missing [temperature] configuration"))?;
-            let now = chrono::Utc::now();
-            let (_, paths) = match settings.source.as_str() {
-                "ambient" => {
-                    let secrets = Secrets::load(&secrets_file)?;
-                    stakecam::temperature::collect(
-                        &stakecam::temperature::Ambient {
-                            config: settings,
-                            secrets: &secrets,
-                        },
-                        &config.data_dir,
-                        now,
-                        history_hours,
-                    )?
-                }
-                "fixture" => stakecam::temperature::collect(
-                    &stakecam::temperature::FixtureSource(
-                        settings
-                            .fixture_file
-                            .clone()
-                            .ok_or_else(|| anyhow::anyhow!("missing fixture_file"))?,
-                    ),
-                    &config.data_dir,
-                    now,
-                    history_hours,
-                )?,
-                _ => anyhow::bail!("unsupported temperature source"),
-            };
-            for path in paths {
-                println!("{}", path.display());
-            }
+async fn run(cli: Cli) -> Result<()> {
+    let config = Arc::new(Config::load(&cli.config)?);
+    let (tasks, history_hours) = match cli.command {
+        None => (config.tasks.clone(), 0),
+        Some(Command::Capture { camera }) => (camera.into_iter().map(TaskId::from).collect(), 0),
+        Some(Command::Temperature { history_hours }) => {
+            (vec![TaskId::ChechaquoTemp], history_hours)
         }
-        Command::Capture {
-            config,
-            secrets_file,
-        } => {
-            let config = Config::load(&config)?;
-            let secrets = Secrets::load(&secrets_file)?;
-            let camera = Camera {
-                config: &config.camera,
-                secrets: &secrets,
-            };
-            log::debug!("starting snapshot capture");
-            let capture = stakecam::capture(&camera, &config, chrono::Utc::now())?;
-            println!("{}", capture.path.display());
-        }
+    };
+    config.validate_tasks(&tasks)?;
+    let needs_secrets = tasks.iter().any(|task| match task {
+        TaskId::MazamaStakeCan | TaskId::MazamaRanchCam => true,
+        TaskId::ChechaquoTemp => config
+            .temperature
+            .as_ref()
+            .is_some_and(|t| t.source == "ambient"),
+    });
+    let secrets = Arc::new(if needs_secrets {
+        Secrets::load(&cli.secrets_file)?
+    } else {
+        Secrets::default()
+    });
+    let sources = Arc::new(Sources {
+        config: Arc::clone(&config),
+        secrets: Arc::clone(&secrets),
+        history_hours,
+    });
+    let report = runner::run(config, tasks, sources).await;
+    for path in report.paths {
+        println!("{}", path.display());
     }
+    for failure in &report.failures {
+        eprintln!("error: {}", secrets.redact(failure));
+    }
+    ensure!(report.failures.is_empty(), "one or more tasks failed");
     Ok(())
 }
-fn main() -> std::process::ExitCode {
+#[tokio::main]
+async fn main() -> std::process::ExitCode {
     let cli = Cli::parse();
-    // Do not enable reqwest/hyper tracing: authenticated URLs must stay private.
+    // Only application logging is enabled; protocol and HTTP logs can expose secrets.
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Off)
         .filter_module(
@@ -106,7 +85,7 @@ fn main() -> std::process::ExitCode {
             },
         )
         .init();
-    match run(cli) {
+    match run(cli).await {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("error: {error:#}");

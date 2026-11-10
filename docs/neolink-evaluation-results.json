@@ -1,0 +1,963 @@
+{
+  "date_local": "2026-11-09",
+  "timezone": "America/Los_Angeles",
+  "provenance": {
+    "control": {
+      "upstream_revision": "e47a0d5734b0a06b53bd8d78be9ca2f6b8396480",
+      "core_tree_sha256": "8db1311464311205d186128548fd0cd0f81705c80fb7205d0042cb824bdc4a2a",
+      "application_lock_sha256": "a46b7d40d90f7203dd9e0259b70fd51ac0acc049849ad1effc53b82b8e174e8e",
+      "shared_tests": 13,
+      "build": "pass",
+      "clippy": "pass"
+    },
+    "vertoforce": {
+      "upstream_revision": "c77bd5cff8167bad153a58a7a04c5da460ab13c3",
+      "core_tree_sha256": "0870ff40090c1eedf888f0841ecfa1ce9b127bacf9350d075f5e60e7e63fd316",
+      "application_lock_sha256": "4d47c4ce6907c85fd44202be258f3c52d8706e858f3bc4b0d8bb92c173debae7",
+      "shared_tests": 13,
+      "build": "pass",
+      "clippy": "pass"
+    },
+    "mad": {
+      "upstream_revision": "beacb39619382cec2624a207c137a467a408e2a7",
+      "core_tree_sha256": "b04a689622c4de6a997ab9826654cbea7a795110d06a8cb2623a5bca0192b6e1",
+      "application_lock_sha256": "f6f6ccebecf4a0cfe046e19c0527bd277ef37ff3e4c32f22b78cdda09cf4bc81",
+      "shared_tests": 13,
+      "build": "pass",
+      "clippy": "pass"
+    }
+  },
+  "summary": {
+    "control": {
+      "successful_snapshots": 4,
+      "snapshot_attempts": 6,
+      "median_success_ms": 17275.0,
+      "cancel_attempts": 10,
+      "cancel_max_ms": 12,
+      "deadline_attempts": 2,
+      "deadline_max_ms": 752,
+      "observed_fd_deltas": [
+        0
+      ]
+    },
+    "vertoforce": {
+      "successful_snapshots": 4,
+      "snapshot_attempts": 6,
+      "median_success_ms": 17224.0,
+      "cancel_attempts": 10,
+      "cancel_max_ms": 12,
+      "deadline_attempts": 2,
+      "deadline_max_ms": 754,
+      "observed_fd_deltas": [
+        0
+      ]
+    },
+    "mad": {
+      "successful_snapshots": 5,
+      "snapshot_attempts": 6,
+      "median_success_ms": 17226,
+      "cancel_attempts": 10,
+      "cancel_max_ms": 12,
+      "deadline_attempts": 2,
+      "deadline_max_ms": 752,
+      "observed_fd_deltas": [
+        0
+      ]
+    }
+  },
+  "observations": [
+    {
+      "elapsed_ms": 17704,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 531298,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 18936,
+      "variant": "control",
+      "batch": 0
+    },
+    {
+      "elapsed_ms": 16175,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "ok": false,
+        "stage": "other"
+      },
+      "rss_kib": 19512,
+      "variant": "control",
+      "batch": 0
+    },
+    {
+      "elapsed_ms": 17219,
+      "fd": 10,
+      "index": 2,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 530320,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 44800,
+      "variant": "control",
+      "batch": 0
+    },
+    {
+      "elapsed_ms": 17292,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 530304,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 19884,
+      "variant": "vertoforce",
+      "batch": 0
+    },
+    {
+      "elapsed_ms": 17234,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 529999,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 45848,
+      "variant": "vertoforce",
+      "batch": 0
+    },
+    {
+      "elapsed_ms": 16024,
+      "fd": 10,
+      "index": 2,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "ok": false,
+        "stage": "other"
+      },
+      "rss_kib": 45928,
+      "variant": "vertoforce",
+      "batch": 0
+    },
+    {
+      "elapsed_ms": 17135,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 530800,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 21028,
+      "variant": "mad",
+      "batch": 0
+    },
+    {
+      "elapsed_ms": 17226,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 530294,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 46948,
+      "variant": "mad",
+      "batch": 0
+    },
+    {
+      "elapsed_ms": 29051,
+      "fd": 10,
+      "index": 2,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "ok": false,
+        "stage": "camera response is not a JPEG"
+      },
+      "rss_kib": 47304,
+      "variant": "mad",
+      "batch": 0
+    },
+    {
+      "elapsed_ms": 17416,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 529724,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 20808,
+      "variant": "mad",
+      "batch": 1
+    },
+    {
+      "elapsed_ms": 17238,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 529910,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 47548,
+      "variant": "mad",
+      "batch": 1
+    },
+    {
+      "elapsed_ms": 17180,
+      "fd": 10,
+      "index": 2,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 530412,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 47780,
+      "variant": "mad",
+      "batch": 1
+    },
+    {
+      "elapsed_ms": 16051,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "ok": false,
+        "stage": "camera response is not a JPEG"
+      },
+      "rss_kib": 19596,
+      "variant": "vertoforce",
+      "batch": 1
+    },
+    {
+      "elapsed_ms": 17214,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 530490,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 20352,
+      "variant": "vertoforce",
+      "batch": 1
+    },
+    {
+      "elapsed_ms": 17202,
+      "fd": 10,
+      "index": 2,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 529616,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 46188,
+      "variant": "vertoforce",
+      "batch": 1
+    },
+    {
+      "elapsed_ms": 17195,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 530834,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 19136,
+      "variant": "control",
+      "batch": 1
+    },
+    {
+      "elapsed_ms": 17331,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "details": {
+          "bytes": 530663,
+          "eoi": true,
+          "height": 2160,
+          "width": 3840
+        },
+        "ok": true
+      },
+      "rss_kib": 45008,
+      "variant": "control",
+      "batch": 1
+    },
+    {
+      "elapsed_ms": 16038,
+      "fd": 10,
+      "index": 2,
+      "initial_fd": 10,
+      "mode": "capture",
+      "result": {
+        "ok": false,
+        "stage": "camera response is not a JPEG"
+      },
+      "rss_kib": 45120,
+      "variant": "control",
+      "batch": 1
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14972,
+      "variant": "control",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 10,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15124,
+      "variant": "control",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 2,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15228,
+      "variant": "control",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 3,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15288,
+      "variant": "control",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 4,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15300,
+      "variant": "control",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 5,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15316,
+      "variant": "control",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 6,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15328,
+      "variant": "control",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 7,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15328,
+      "variant": "control",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 12,
+      "fd": 10,
+      "index": 8,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15332,
+      "variant": "control",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 9,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15356,
+      "variant": "control",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 751,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "deadline",
+      "result": {
+        "details": {
+          "deadline_failure": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15572,
+      "variant": "control",
+      "batch": "deadline"
+    },
+    {
+      "elapsed_ms": 752,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "deadline",
+      "result": {
+        "details": {
+          "deadline_failure": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15900,
+      "variant": "control",
+      "batch": "deadline"
+    },
+    {
+      "elapsed_ms": 10,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14260,
+      "variant": "vertoforce",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14408,
+      "variant": "vertoforce",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 2,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14428,
+      "variant": "vertoforce",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 3,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14440,
+      "variant": "vertoforce",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 4,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14472,
+      "variant": "vertoforce",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 5,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14484,
+      "variant": "vertoforce",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 12,
+      "fd": 10,
+      "index": 6,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14496,
+      "variant": "vertoforce",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 7,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14500,
+      "variant": "vertoforce",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 8,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14500,
+      "variant": "vertoforce",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 9,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14508,
+      "variant": "vertoforce",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 752,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "deadline",
+      "result": {
+        "details": {
+          "deadline_failure": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15688,
+      "variant": "vertoforce",
+      "batch": "deadline"
+    },
+    {
+      "elapsed_ms": 754,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "deadline",
+      "result": {
+        "details": {
+          "deadline_failure": true
+        },
+        "ok": true
+      },
+      "rss_kib": 15896,
+      "variant": "vertoforce",
+      "batch": "deadline"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 13992,
+      "variant": "mad",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14076,
+      "variant": "mad",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 2,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14092,
+      "variant": "mad",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 3,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14120,
+      "variant": "mad",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 4,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14128,
+      "variant": "mad",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 5,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14136,
+      "variant": "mad",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 6,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14136,
+      "variant": "mad",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 7,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14136,
+      "variant": "mad",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 12,
+      "fd": 10,
+      "index": 8,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14164,
+      "variant": "mad",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 11,
+      "fd": 10,
+      "index": 9,
+      "initial_fd": 10,
+      "mode": "cancel",
+      "result": {
+        "details": {
+          "cancelled": true
+        },
+        "ok": true
+      },
+      "rss_kib": 14164,
+      "variant": "mad",
+      "batch": "cleanup"
+    },
+    {
+      "elapsed_ms": 752,
+      "fd": 10,
+      "index": 0,
+      "initial_fd": 10,
+      "mode": "deadline",
+      "result": {
+        "details": {
+          "deadline_failure": true
+        },
+        "ok": true
+      },
+      "rss_kib": 16052,
+      "variant": "mad",
+      "batch": "deadline"
+    },
+    {
+      "elapsed_ms": 752,
+      "fd": 10,
+      "index": 1,
+      "initial_fd": 10,
+      "mode": "deadline",
+      "result": {
+        "details": {
+          "deadline_failure": true
+        },
+        "ok": true
+      },
+      "rss_kib": 16184,
+      "variant": "mad",
+      "batch": "deadline"
+    }
+  ]
+}

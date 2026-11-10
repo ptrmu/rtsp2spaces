@@ -1,14 +1,22 @@
 # Reference template; config.toml is the shared development and Pi configuration.
 # Relative data_dir paths resolve against the configuration file.
 data_dir = "data"
-image_prefix = "mazama_stake_"
+tasks = ["MazamaStakeCan", "MazamaRanchCam", "ChechaquoTemp"]
 
-[camera]
+[cameras.MazamaStakeCan]
+source = "https"
+crop = "center_square"
 host = "192.168.1.25"
 channel = 1
 timeout_seconds = 15
 # Opt in only for the camera's self-signed certificate.
 accept_invalid_certs = true
+
+[cameras.MazamaRanchCam]
+source = "reolink_uid"
+channel = 0
+crop = "none"
+timeout_seconds = 60
 
 [temperature]
 source = "ambient"

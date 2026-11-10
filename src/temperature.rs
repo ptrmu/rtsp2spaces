@@ -1,14 +1,13 @@
 use crate::secrets::Secrets;
 use anyhow::{Context, Result, bail, ensure};
 use chrono::{DateTime, Duration, Utc};
-use reqwest::{blocking::Client, redirect::Policy};
+use reqwest::{Client, redirect::Policy};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     fs::{self, OpenOptions},
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
-    thread,
     time::Duration as Timeout,
 };
 
@@ -89,21 +88,15 @@ fn normalize(sample: Sample, source: &str, now: DateTime<Utc>) -> Result<Reading
         celsius,
     })
 }
-impl TemperatureSource for Ambient<'_> {
-    fn readings(&self, now: DateTime<Utc>, history_hours: u32) -> Result<Vec<Reading>> {
+impl Ambient<'_> {
+    pub async fn readings(&self, now: DateTime<Utc>, history_hours: u32) -> Result<Vec<Reading>> {
         self.config.validate()?;
-        let api = self
-            .secrets
-            .ambient_api_key
-            .as_deref()
-            .filter(|v| !v.is_empty())
-            .context("missing ambient_api_key")?;
-        let app = self
-            .secrets
-            .ambient_application_key
-            .as_deref()
-            .filter(|v| !v.is_empty())
-            .context("missing ambient_application_key")?;
+        let api = &self.secrets.temperature.ambient.api_key;
+        let app = &self.secrets.temperature.ambient.application_key;
+        ensure!(
+            !api.is_empty() && !app.is_empty(),
+            "missing Ambient credentials"
+        );
         let mac = self
             .config
             .mac_address
@@ -115,12 +108,13 @@ impl TemperatureSource for Ambient<'_> {
             .redirect(Policy::none())
             .build()
             .map_err(|e| e.without_url())?;
-        let fetch = |path: &str, extra: &[(&str, String)]| -> Result<serde_json::Value> {
+        let fetch = async |path: &str, extra: &[(&str, String)]| -> Result<serde_json::Value> {
             let response = client
                 .get(format!("https://rt.ambientweather.net/v1/{path}"))
                 .query(&[("apiKey", api), ("applicationKey", app)])
                 .query(extra)
                 .send()
+                .await
                 .map_err(|e| e.without_url())
                 .context("Ambient request failed")?;
             ensure!(
@@ -128,19 +122,11 @@ impl TemperatureSource for Ambient<'_> {
                 "Ambient API returned HTTP {}",
                 response.status().as_u16()
             );
-            let mut bytes = Vec::new();
-            response
-                .take(4 * 1024 * 1024 + 1)
-                .read_to_end(&mut bytes)
-                .map_err(|_| anyhow::anyhow!("cannot read Ambient response"))?;
-            ensure!(
-                bytes.len() <= 4 * 1024 * 1024,
-                "Ambient response exceeds 4 MiB"
-            );
+            let bytes = crate::camera::bounded_body(response, 4 * 1024 * 1024).await?;
             serde_json::from_slice(&bytes)
                 .map_err(|_| anyhow::anyhow!("invalid Ambient JSON response"))
         };
-        let devices = fetch("devices", &[])?;
+        let devices = fetch("devices", &[]).await?;
         let device = devices
             .as_array()
             .context("invalid Ambient device list")?
@@ -164,11 +150,12 @@ impl TemperatureSource for Ambient<'_> {
             let mut end = now.timestamp_millis();
             loop {
                 // Ambient limits each account to one request per second.
-                thread::sleep(Timeout::from_millis(1100));
+                tokio::time::sleep(Timeout::from_millis(1100)).await;
                 let data = fetch(
                     &format!("devices/{mac}"),
                     &[("limit", "288".into()), ("endDate", end.to_string())],
-                )?;
+                )
+                .await?;
                 let samples: Vec<Sample> = serde_json::from_value(data)
                     .map_err(|_| anyhow::anyhow!("invalid Ambient history response"))?;
                 if samples.is_empty() {
@@ -246,7 +233,10 @@ pub fn collect(
     hours: u32,
 ) -> Result<(usize, Vec<PathBuf>)> {
     ensure!(hours <= 24, "history_hours must be at most 24");
-    let mut readings = source.readings(now, hours)?;
+    let readings = source.readings(now, hours)?;
+    persist(readings, directory)
+}
+pub fn persist(mut readings: Vec<Reading>, directory: &Path) -> Result<(usize, Vec<PathBuf>)> {
     ensure!(
         !readings.is_empty(),
         "temperature source returned no readings"

@@ -20,7 +20,7 @@ def main():
     if args.timeout <= 0:
         parser.error('--timeout must be positive')
     try:
-        secrets = json.loads(Path(args.secrets_file).read_text())[args.camera]
+        secrets = json.loads(Path(args.secrets_file).read_text())["cameras"][args.camera]
         if not all(isinstance(secrets[k], str) and secrets[k] for k in ('uid', 'username', 'password')):
             raise ValueError()
     except (OSError, ValueError, KeyError, TypeError):
