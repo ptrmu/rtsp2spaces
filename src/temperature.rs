@@ -280,7 +280,15 @@ pub fn collect(
             .append(true)
             .open(&path)
             .context("cannot open temperature history for append")?;
-        let mut line = serde_json::to_vec(&reading).context("cannot serialize temperature")?;
+        // Write celsius as a JSON number with exactly two fractional digits.
+        let mut fields = serde_json::to_value(&reading).context("cannot serialize temperature")?;
+        fields
+            .as_object_mut()
+            .context("invalid temperature record")?
+            .remove("celsius");
+        let mut json = serde_json::to_string(&fields).context("cannot serialize temperature")?;
+        json.pop(); // Closing brace of the serialized object.
+        let mut line = format!("{json},\"celsius\":{:.2}}}", reading.celsius).into_bytes();
         // Separate a partial final line left by an interrupted append.
         use std::io::{Seek, SeekFrom};
         if file.metadata()?.len() > 0 {
@@ -353,6 +361,8 @@ mod tests {
         let fake = Fake(vec![b.clone(), a.clone(), b.clone()]);
         let (count, paths) = collect(&fake, temp.path(), now(), 24).unwrap();
         assert_eq!(count, 2);
+        let stored = fs::read_to_string(&paths[0]).unwrap();
+        assert!(stored.contains("\"celsius\":-1.50"));
         assert_eq!(paths.len(), 2);
         assert!(paths[0].ends_with("2026-11-08.jsonl"));
         assert_eq!(collect(&fake, temp.path(), now(), 24).unwrap().0, 0);
