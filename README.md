@@ -81,6 +81,20 @@ The script builds the executable and tests capture, same-minute replacement warn
 
 Live-camera checks passed from the Dev Container on 2026-11-08: a saved 1080×1080 JPEG was visually inspected, two captures within one local minute replaced the same file with a warning, a wrong password produced the camera API error, an unreachable address timed out, and an output directory under `/proc` failed cleanly. The captured output contained none of the supplied secret values. Pi deployment filesystem permissions remain a Phase 5 check.
 
+### Remote Reolink capture
+
+`bin/capture-remote` uses Neolink's UID protocol to capture a full, uncropped JPEG without LAN access. This is a standalone utility; the Rust `capture` command continues to use HTTPS. Install [Neolink 0.6.2](https://github.com/QuantumEntangledAndy/neolink/releases/tag/v0.6.2) and its GStreamer runtime dependencies (Debian: `libgstrtspserver-1.0-0 gstreamer1.0-plugins-good gstreamer1.0-libav`).
+
+Add a `MazamaRanchCam` object with `uid`, `username`, and `password` string fields to the private, ignored `stake_cam_secrets.json`, then run:
+
+```sh
+bin/capture-remote --neolink /path/to/neolink --output data/remote/ranch.jpeg
+```
+
+The utility uses a temporary private configuration, suppresses Neolink output that may contain identifiers, enforces a 60-second timeout, and replaces the output only after a successful JPEG capture. Use `--camera` to select another secrets entry and `--timeout` to change the deadline. Neolink's `discovery = "relay"` enables its discovery methods including Reolink's relay servers.
+
+Verified on 2026-11-09 against a remote RLC-811A: relay connection, device login, and native snapshot succeeded; the 3840×2160 JPEG was visually inspected. The downloaded test binary is currently at `/tmp/stakecam-neolink/neolink_linux_x86_64_bullseye/neolink`; install it persistently before relying on the utility after environment cleanup.
+
 ## Temperature collection
 
 Read the station's latest outdoor temperature and save it:

@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Capture a remote Reolink still using Neolink and a private secrets entry."""
+import argparse
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--secrets-file', default='stake_cam_secrets.json')
+    parser.add_argument('--camera', default='MazamaRanchCam')
+    parser.add_argument('--neolink', default='neolink')
+    parser.add_argument('--output', default='data/remote/ranch.jpeg')
+    parser.add_argument('--timeout', type=int, default=60)
+    args = parser.parse_args()
+    if args.timeout <= 0:
+        parser.error('--timeout must be positive')
+    try:
+        secrets = json.loads(Path(args.secrets_file).read_text())[args.camera]
+        if not all(isinstance(secrets[k], str) and secrets[k] for k in ('uid', 'username', 'password')):
+            raise ValueError()
+    except (OSError, ValueError, KeyError, TypeError):
+        sys.exit('Cannot load camera entry; expected nonempty uid, username, and password strings.')
+
+    output = Path(args.output).resolve()
+    if output.suffix.lower() != '.jpeg':
+        parser.error('--output must end in .jpeg (Neolink uses this extension)')
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='stakecam-remote-') as private:
+        config = Path(private) / 'camera.toml'
+        config.touch(mode=0o600)
+        config.write_text(
+            'bind = "127.0.0.1"\n[[cameras]]\nname = "remote"\ndiscovery = "relay"\n'
+            + ''.join(k + ' = ' + json.dumps(secrets[k]) + '\n' for k in ('uid', 'username', 'password'))
+        )
+        # Stage in the destination filesystem, then rename after a successful capture.
+        with tempfile.TemporaryDirectory(prefix='.remote-', dir=output.parent) as stage:
+            image = Path(stage) / 'capture.jpeg'
+            try:
+                result = subprocess.run(
+                    [args.neolink, 'image', '--config', str(config), '--file-path', str(image), 'remote'],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    timeout=args.timeout, env={**os.environ, 'RUST_LOG': 'off'},
+                )
+            except subprocess.TimeoutExpired:
+                sys.exit('Remote capture timed out.')
+            except OSError:
+                sys.exit('Cannot execute Neolink; check --neolink and its runtime libraries.')
+            if result.returncode != 0 or not image.exists():
+                sys.exit('Neolink capture failed; raw output suppressed to protect credentials.')
+            with image.open('rb') as handle:
+                if handle.read(3) != b'\xff\xd8\xff':
+                    sys.exit('Camera did not return a JPEG.')
+            image.replace(output)
+    print(output)
+
+
+if __name__ == '__main__':
+    main()

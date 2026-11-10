@@ -2,7 +2,7 @@
 
 ## Implementation status and development environment
 
-This document specifies the planned Rust implementation. Phase 1 capture is implemented and verified with automated tests and live-camera acceptance on 2026-11-08 (see README.md). Phase 2 temperature collection and history seeding are also implemented and verified against Ambient Weather. Rendering, uploading, and deployment remain design targets. See README.md for available commands and configuration defaults.
+This document specifies the planned Rust implementation. Phase 1 capture is implemented and verified with automated tests and live-camera acceptance on 2026-11-08 (see README.md). Phase 2 temperature collection and history seeding are also implemented and verified against Ambient Weather. A remote RLC-811A native JPEG capture through Neolink 0.6.2 and Reolink UID relay was also verified on 2026-11-09 using the standalone `bin/capture-remote` utility. The two-camera Rust integration and hierarchical secrets described below are planned, not yet implemented. Rendering, uploading, and deployment remain design targets. See README.md for available commands and configuration defaults.
 
 See [README.md](README.md#development) for the committed Dev Container, setup script, current toolchain observations, and verified development commands. Cross-compilation and Pi deployment are Phase 5 work.
 
@@ -14,36 +14,53 @@ Use typed configuration, `Result` errors, contextual diagnostics, and replaceabl
 
 Development is incremental: each phase adds one working command, and the phases are built in order. Matching the Python implementation is not a goal. The only compatibility requirement is the public metadata and remote object names the website reads (Phase 4).
 
+### Stage boundaries and future concurrency
+
+Keep clear boundaries between fetching image bytes, processing images (decode, crop, render, and encode), saving local files, and uploading to Spaces. Each stage accepts explicit inputs and returns its result; sequencing belongs in the command orchestration rather than inside a stage. Preserve capture timestamps as data passed between stages.
+
+Run stages serially for now. These boundaries should allow the two camera fetches, temperature requests, and independent Spaces uploads to overlap later without rewriting image processing. Keep image processing synchronous and serial outside the UID adapter runtime; if orchestration becomes asynchronous later, use a single blocking worker for image work. Preserve dependencies within each publication, including uploading the image before its metadata, while allowing independent image pipelines to overlap.
+
+Introduce a small Tokio runtime for `neolink_core` networking only. Await the UID connection, login, snapshot, and logout within that adapter; keep command orchestration serial and retain the replaceable capture-source boundary. Execute blocking HTTPS and image work outside the runtime. Defer concurrent pipelines and queues until needed. This is design guidance for subsequent work, not a claim that the current implementation already separates every stage.
+
 ### Commands
 
 ```sh
 stakecam capture     --config config.toml --secrets-file secrets.json
 stakecam temperature --config config.toml --secrets-file secrets.json
-stakecam render      --config config.toml --input image.jpg --output annotated.jpg [--at <RFC3339-time>]
-stakecam upload      --config config.toml --secrets-file secrets.json --input annotated.jpg [--at <RFC3339-time>]
+stakecam render      --config config.toml --camera MazamaStakeCan --input image.jpg --output annotated.jpg [--at <RFC3339-time>]
+stakecam upload      --config config.toml --secrets-file secrets.json --camera MazamaStakeCan --input annotated.jpg [--at <RFC3339-time>]
 stakecam run         --config config.toml --secrets-file secrets.json
 ```
 
-`run` performs one complete cycle: capture, temperature, render, and upload. It passes the files and the exact capture time between steps in memory, so the user never names a capture. The individual commands exist for development, testing, and recovery; they take the capture time from the image filename, or from `--at` when given.
+`capture` attempts both configured cameras in a single invocation, in the fixed order `MazamaStakeCan`, then `MazamaRanchCam`. Each successful capture prints its saved path. Attempt the second camera even if the first fails; retain successes and return nonzero if either failed. Captures are sequential, not simultaneous.
+
+`run` captures both cameras, collects temperature once, then processes and publishes each successful capture independently. It carries camera identity, local path, and that camera's capture timestamp between stages in memory. The individual `render` and `upload` commands require `--camera` to select the image policy and publication destination; reject a named-camera filename that disagrees with the selected camera. Parse the capture time from the image filename, or use `--at` when supplied.
 
 Each command runs once and exits. Scheduling and retention of local files are managed outside the application.
 
 ### Configuration
 
-Define arguments with `clap` derive, using kebab-case flags and generated help. The command line carries only file paths and per-invocation inputs (`--config`, `--secrets-file`, `--input`, `--output`, `--at`, `--verbose`). Every other setting lives in TOML, with documented defaults where reasonable. Paths inside the TOML file resolve relative to that file; command-line paths resolve relative to the working directory.
+Define arguments with `clap` derive, using kebab-case flags and generated help. The command line carries only file paths and per-invocation inputs (`--config`, `--secrets-file`, `--camera`, `--input`, `--output`, `--at`, `--verbose`). Every other setting lives in TOML, with documented defaults where reasonable. Paths inside the TOML file resolve relative to that file; command-line paths resolve relative to the working directory.
 
 Illustrative configuration (final keys are fixed as each phase is implemented):
 
 ```toml
 data_dir = "data"
-image_prefix = "mazama_stake_"
-metadata_file = "mazama_stake.json"  # local copy of the public metadata
 
-[camera]
+[cameras.MazamaStakeCan]
+source = "https"
 host = "192.168.1.25"
-channel = 1                   # TrackMix: 0 = wide lens, 1 = telephoto
+channel = 1                   # TrackMix telephoto lens
+crop = "center_square"
 timeout_seconds = 15
-accept_invalid_certs = true   # the camera's HTTPS certificate is self-signed
+accept_invalid_certs = true   # camera's self-signed HTTPS certificate
+
+[cameras.MazamaRanchCam]
+source = "reolink_uid"
+channel = 0                   # RLC-811A
+crop = "none"
+timeout_seconds = 60
+# UID and device credentials belong in the secrets file.
 
 [temperature]
 source = "ambient"
@@ -51,7 +68,8 @@ mac_address = "94:3C:C6:45:02:5F"
 timeout_seconds = 15
 sampling_interval_minutes = 5
 
-[overlay]
+[cameras.MazamaStakeCan.overlay]
+enabled = true
 height_fraction = 0.12
 inset_fraction = 0.03
 trace_color = "#00ffff"
@@ -61,31 +79,81 @@ line_width = 2
 [spaces]
 region = "sfo3"
 bucket = "stake-images"
+
+[cameras.MazamaStakeCan.publication]
+metadata_file = "mazama_stake_can.json"
 image_object = "mazama/latest/stake_image.jpg"
 metadata_object = "mazama/latest/stake_image.json"
 image_alt = "Mazama Snow Stake"
 image_expiration_seconds = 60
+
+[cameras.MazamaRanchCam.publication]
+metadata_file = "mazama_ranch_cam.json"
+image_object = "mazama/latest/ranch_image.jpg"
+metadata_object = "mazama/latest/ranch_image.json"
+image_alt = "Mazama Ranch"
+image_expiration_seconds = 60
 ```
 
-### Local files
+### Camera identity and local files
+
+Use the exact stable IDs `MazamaStakeCan` (existing TrackMix stake camera) and `MazamaRanchCam` (remote RLC-811A). Configuration and secrets use the same case-sensitive keys. Validate the two required camera entries, supported source and crop values, positive timeouts, and source-specific settings before any network work. Publication and overlay settings are only required by commands that use them. Do not accept arbitrary path components as camera IDs.
 
 All local output lives under `data_dir`:
 
 ```text
 data/
   files/
-    mazama_stake_202611081521.jpg            captured image
-    mazama_stake_202611081521_annotated.jpg  rendered image
-  mazama_stake.json                          public metadata, overwritten each upload
-  temperature/<UTC-date>.jsonl               temperature history, one reading per line
+    mazama_stake_can_20261110012630z.jpg
+    mazama_stake_can_20261110012630z_annotated.jpg
+    mazama_ranch_cam_20261110012638z.jpg
+  mazama_stake_can.json           latest local publication metadata
+  mazama_ranch_cam.json           latest local publication metadata
+  temperature/<UTC-date>.jsonl  shared station history
 ```
 
-Image names use `<image_prefix><YYYYMMDDHHMM>.jpg`, in UTC to the minute, independent of the host timezone. There is no timezone configuration. Older local-time filenames are not automatically migrated; convert those timestamps to UTC or supply their actual capture instant with `--at` when processing them. Rendered images append `_annotated` to the stem.
+All generated filenames use lowercase. Map `MazamaStakeCan` to the filename stem `mazama_stake_can` and `MazamaRanchCam` to `mazama_ranch_cam`; configuration and secrets retain their case-sensitive camera IDs. Image names use `<camera_stem>_<YYYYMMDDHHMMSS>z.jpg`, in UTC to the second; the lowercase `z` explicitly denotes UTC. Record each camera's timestamp immediately before requesting its snapshot; carry the full-precision instant in memory. This is a client request timestamp, not a hardware exposure timestamp. Independent commands recover second precision from the filename; `--at` overrides it. The two images need not have the same timestamp. There is no timezone configuration. Rendered images append `_annotated` to the stem.
 
-- A capture in the same UTC minute as an existing image replaces that image and logs a warning.
-- There is no per-image sidecar. Dimensions are read from the JPEG. The capture time is parsed from the 12-digit timestamp in the filename; `--at` overrides it for images whose names do not contain one. Filename timestamps are interpreted as UTC; daylight saving changes introduce no ambiguity.
+- A capture for the same camera in the same UTC second replaces the existing file with a warning. Different camera IDs prevent collisions between cameras.
+- There is no per-image sidecar. Read dimensions from the JPEG. Preserve the Ranch camera's native aspect ratio; center-crop the Stake camera as before.
+- Support existing `<prefix><YYYYMMDDHHMM>.jpg` filenames as UTC to the minute for manual render/upload, with explicit `--camera`. Older files remain in place; no automatic renaming. Historical local-time filenames require `--at` with their actual instant.
+- Keep Stake camera public object names unchanged for the existing website. The Ranch camera gets its own image and metadata objects; it cannot overwrite Stake camera output. The former local `mazama_stake.json` is superseded by the two named metadata files.
 
-Write images and JSON documents to a temporary file and then rename it into place, so a partly written file never appears under its final name.
+Write images and JSON documents to a temporary file and then rename into place, so a partly written file never appears under its final name.
+
+### Hierarchical secrets
+
+The target private `stake_cam_secrets.json` groups credentials by use. Examples contain placeholders only:
+
+```json
+{
+  "cameras": {
+    "MazamaStakeCan": {
+      "username": "REPLACE_WITH_STATE_USER",
+      "password": "REPLACE_WITH_STATE_PASSWORD"
+    },
+    "MazamaRanchCam": {
+      "uid": "REPLACE_WITH_RANCH_UID",
+      "username": "REPLACE_WITH_RANCH_USER",
+      "password": "REPLACE_WITH_RANCH_PASSWORD"
+    }
+  },
+  "temperature": {
+    "ambient": {
+      "api_key": "REPLACE_WITH_AMBIENT_API_KEY",
+      "application_key": "REPLACE_WITH_AMBIENT_APPLICATION_KEY"
+    }
+  },
+  "spaces": {
+    "access_key_id": "REPLACE_WITH_SPACES_ACCESS_KEY_ID",
+    "secret_access_key": "REPLACE_WITH_SPACES_SECRET_ACCESS_KEY"
+  }
+}
+```
+
+Use typed nested structs without `Debug` for secret-bearing types. Load read-only and validate credentials only for the operation using them. Missing or invalid credentials for one camera are reported under its public camera ID and do not prevent the other capture attempt. Treat the UID as private; redact all credential values, including nested values, and disable Neolink protocol logging even with `--verbose`.
+
+Migration is a coordinated implementation change: move top-level `rtsp_user`/`rtsp_pw` to `cameras.MazamaStakeCan.username`/`password`; move the current top-level `MazamaRanchCam` object under `cameras`; move Ambient fields under `temperature.ambient`. Map the old Spaces fields to the explicit AWS-style names after verifying which value is the access key ID and which is the secret; never infer from their ambiguous old names or print values. Remove flat fields after migration, with no silent legacy fallback. Update the Rust loaders, capture utility, live checks, and README together. This design revision does not modify the live secrets file or current configuration.
 
 ### Logging and exit codes
 
@@ -94,28 +162,36 @@ Write images and JSON documents to a temporary file and then rename it into plac
 - Exit 0 on success and nonzero on any failure. `clap` usage errors keep its default exit code 2.
 - Each command prints the paths of the files it wrote to stdout, so steps can be inspected or scripted.
 
-## Phase 1: Read the camera and save an image locally
+## Phase 1 extension: Capture both named cameras
+
+The original single-camera HTTPS capture is implemented. The following extension is the next implementation milestone.
+
+### Library source and deployment
+
+- Vendor only `neolink_core` and its required upstream license notices under `vendor/neolink_core`, using a Cargo path dependency. Pin the upstream source to the tested Neolink 0.6.2 commit `e47a0d5734b0a06b53bd8d78be9ca2f6b8396480` initially. Confirm that revision's API before integration.
+- Add `UPSTREAM.md` recording repository URL, revision, version, license, and local patches. Preserve upstream copyright and AGPL-3.0-or-later licensing; keep adapter code in Stakecam. Review upstream changes explicitly when updating, and commit the resolved dependency graph in `Cargo.lock`.
+- Use the core library's native snapshot operation, not the RTSP bridge or video transcoding. Compile it into Stakecam; no separate Neolink executable, Python wrapper, or GStreamer runtime is needed for this capture path. Verify the final binary's system dependencies on the Pi rather than assuming static linking.
+- Vendoring the core library does not vendor its transitive Cargo dependencies. Normal dependency fetching or a populated cache is still required to build.
 
 ### Implementation
 
-- Capture with one HTTPS request to the camera's snapshot API, which returns a JPEG:
-  `GET https://<host>/cgi-bin/api.cgi?cmd=Snap&channel=<channel>&rs=<random>&user=<user>&password=<pw>`
-  The camera is a Reolink TrackMix PoE; channel 1 is the telephoto lens (1920×1080) used for the stake view. A single request needs no login session, so a crashed run cannot leave a session open.
-- Use `reqwest` with `rustls`, building the query with its URL encoder so passwords containing symbols are encoded correctly. Accept the self-signed certificate when `accept_invalid_certs` is set.
-- Verify the response is a JPEG. The camera reports errors as JSON; surface its error detail.
-- Decode with `image` and center-crop horizontally: width becomes `min(width, height)`; height remains unchanged.
-- Save the JPEG as described under [Local files](#local-files), warning when an existing image is replaced.
-- Load camera credentials from a read-only JSON secrets file using the existing `rtsp_user` and `rtsp_pw` fields; the names are kept so existing secrets files still work.
-- Apply a finite request timeout. Never log the request URL, which contains the password; strip it from `reqwest` errors (`without_url()`) before reporting them.
+- Introduce typed camera settings keyed by the two stable IDs and source adapters behind the existing replaceable capture interface. Return image bytes and capture timestamp separately from crop, encoding, and local persistence. Keep the camera ID with each successful result.
+- `MazamaStakeCan`: retain the existing HTTPS `Snap` request, query encoding, optional self-signed certificate acceptance, finite timeout, redirect rejection, and JPEG/error checks. Channel 1 is the TrackMix telephoto view. Apply `center_square` after fetching.
+- `MazamaRanchCam`: connect using UID discovery with relay fallback, authenticate with its device credentials, request the native channel-0 JPEG, then log out and release the connection. Preserve the full frame (`crop = "none"`); the live test returned 3840×2160. Do not assume every response has that size.
+- Bound the whole UID operation, including connection, login, snapshot, and cleanup, by the configured deadline. Attempt logout after login even when capture fails; cleanup must not wait indefinitely or discard an otherwise successful image. On timeout cancel network tasks and shut down the adapter runtime. Do not change camera time, lights, zoom, or other settings during capture.
+- Validate JPEG responses and enforce a 32 MiB payload ceiling. Review and bound the core snapshot assembly path before allocating from camera-reported sizes; a length check after downloading alone is insufficient.
+- Attempt both captures serially and retain successful files on partial failure. Errors identify the camera and stage without exposing raw protocol payloads, credentials, UID, or authenticated URLs. Strip URLs from HTTPS transport errors and suppress or sanitize upstream errors.
+- Load the hierarchical secrets above. Save each image using its mapped lowercase camera stem and own timestamp as specified under Local files. Keep the existing atomic-save behavior.
 
 ### Independent acceptance
 
-- Run against the real camera and inspect the saved JPEG.
-- Confirm dimensions, crop, UTC filenames, and replacement with a warning on repeated captures within a minute.
-- Test unreachable camera, wrong password, and unwritable output errors, and confirm no error message contains the password.
-- Automated tests use fixture images and a fake capture source; they require no camera.
+- Offline tests verify both-camera orchestration, partial success in either direction, source selection, credential isolation, hierarchical validation, timeout/cancellation, bounded payloads, JPEG validation, crop policies, UTC filenames, same-second replacement, and secret-free diagnostics. Ordinary tests require no real camera or network.
+- Verify source-specific configuration errors before network access; a malformed secrets document fails cleanly without echoing its contents.
+- Run one `stakecam capture` invocation against both real cameras and inspect both saved JPEGs. Confirm Stake crop and Ranch full-frame dimensions, filenames, independent timestamps, and UID relay connectivity.
+- Exercise an unavailable camera and confirm the other still saves successfully while the command exits nonzero. Validate cleanup on snapshot failure and timeout, with no upstream logging leaks.
+- Run `cargo fmt --check`, `cargo clippy --all-targets --locked -- -D warnings`, and `cargo test --locked`. Cross-compilation and deployment acceptance remain Phase 5 work.
 
-**Review stop:** No temperature collection, graph drawing, or uploads are required.
+**Review stop:** Both named images are captured in one invocation. No rendering, uploads, or deployment are required for this extension.
 
 ## Phase 2: Read temperatures and save them locally
 
@@ -123,7 +199,7 @@ Write images and JSON documents to a temporary file and then rename it into plac
 
 - Introduce a replaceable temperature source returning observation time, collection time, source identifier, and temperature normalized to Celsius.
 - Support an explicitly selected fixture source for offline development.
-- Read Ambient Weather through `https://rt.ambientweather.net/v1/devices` for the latest station reading and `/v1/devices/<MAC>` for history. Authenticate with `ambient_api_key` and `ambient_application_key` from the secrets file, keep authenticated URLs out of diagnostics, convert `tempf` to Celsius, and interpret `dateutc` as UTC milliseconds.
+- Read Ambient Weather through `https://rt.ambientweather.net/v1/devices` for the latest station reading and `/v1/devices/<MAC>` for history. Authenticate with `temperature.ambient.api_key` and `temperature.ambient.application_key` from the secrets file, keep authenticated URLs out of diagnostics, convert `tempf` to Celsius, and interpret `dateutc` as UTC milliseconds.
 - `temperature --history-hours 24` seeds the rolling day in addition to the latest reading; values 0–24 are accepted. Page history backward using `endDate` with up to 288 readings per request and wait at least 1.1 seconds between requests.
 - Append each reading as one JSON line to `data/temperature/<UTC-date>.jsonl`, where the date is the observation date: `{"source": "...", "observed_at": "<RFC3339>", "collected_at": "<RFC3339>", "celsius": -1.5}`.
 - Write each line with a single append. Skip a reading whose source and observation time already appear in that day's file.
@@ -144,7 +220,7 @@ Write images and JSON documents to a temporary file and then rename it into plac
 
 ### Implementation
 
-- Accept an existing image and read the preceding 24 hours of temperature history from the daily files covering that window.
+- Accept an existing image and explicit camera ID. For `MazamaStakeCan`, read the preceding 24 hours of shared temperature history from the daily files covering that window. `MazamaRanchCam` has no overlay initially and is published from its captured original; a future overlay is opt-in per camera.
 - Take the capture time from the image filename, or from `--at <RFC3339-time>`.
 - Draw using `image`/`imageproc`, then save a separate annotated JPEG. Preserve the original.
 - Draw only a thin cyan temperature trace and a thin white horizontal freezing line at 0°C. Include no labels, axes, legend, or background panel.
@@ -163,7 +239,7 @@ Write images and JSON documents to a temporary file and then rename it into plac
 
 **Review stop:** No upload is performed.
 
-## Phase 4: Upload the annotated image to Spaces
+## Phase 4: Upload a camera image to Spaces
 
 ### Prerequisite
 
@@ -178,11 +254,11 @@ Write images and JSON documents to a temporary file and then rename it into plac
   - `timestamp`: capture time as Unix seconds in UTC.
   - `valid_until`: capture time plus `image_expiration_seconds`, as Unix seconds. This sets metadata validity; it does not schedule captures.
 - Use the original capture time (from `run`, the filename, or `--at`), not render or upload time.
-- Save the metadata locally as `<data_dir>/<metadata_file>`, overwritten on each upload.
+- Select publication settings by camera ID. Save metadata locally as `<data_dir>/<cameras.<CameraId>.publication.metadata_file>`, overwritten on each upload for that camera.
 - Use the configured remote object names, public-read access, appropriate content types, and `Cache-Control: max-age=60`.
 - Upload JPEG first, then metadata. If the image upload fails, do not upload metadata.
 - Retain local files after failure. Use bounded timeouts and retries, and return nonzero on failure.
-- Load the `spaces_key` and `spaces_access_key` secrets fields.
+- Load shared `spaces.access_key_id` and `spaces.secret_access_key` credentials from the hierarchical secrets file.
 - Fixed remote names maintain website compatibility; the two uploads are not an atomic publication.
 
 ### Independent acceptance
@@ -199,9 +275,9 @@ Write images and JSON documents to a temporary file and then rename it into plac
 
 ### Implementation
 
-- Add `run`, which performs capture, temperature, render, and upload in order, passing the exact capture time in memory rather than re-reading it from the filename.
-- A capture, render, or upload failure stops the cycle. A temperature failure is logged and the cycle continues using existing history, because the graph should not block a fresh image. `run` still exits nonzero if any step failed.
-- Deploy without a container. Every dependency is a Rust crate (`reqwest` with `rustls`, `image`, `imageproc`, the AWS SDK with `rustls`), so no Python runtime is needed. A GNU target build still depends on compatible system libraries on the Pi; verify those requirements, or validate a static musl build, before documenting installation.
+- Add `run`, which attempts both captures, collects shared temperature once, then renders and uploads each successful camera result in order. Carry each camera ID and exact capture time in memory. Render Stake with its overlay; upload Ranch directly unless an overlay is explicitly configured.
+- A camera capture, render, or upload failure stops only that camera's downstream work; continue the other camera. A temperature failure is logged and processing continues using existing history. Do not republish a stale image as a fresh capture. `run` exits nonzero if any required operation failed; successful publications remain valid.
+- Deploy without a container. Compile the vendored `neolink_core` into the same executable alongside `reqwest` with `rustls`, `image`, `imageproc`, and the AWS SDK with `rustls`. No Python runtime, separate Neolink process, or GStreamer runtime is needed for native snapshot capture. A GNU target build still depends on compatible system libraries on the Pi; verify those requirements, or validate a static musl build, before documenting installation.
 - Cross-compile for the Pi in the dev container, e.g. `cargo zigbuild --release --target aarch64-unknown-linux-gnu` (or a static `aarch64-unknown-linux-musl` build), and copy the executable to `~/Work/stakecam/stakecam` on the Pi. Add the build and install steps to `bin/` scripts.
 - Run it from a systemd oneshot service as the non-root Pi user who owns `~/Work/stakecam`. Keep the executable, shared tracked `config.toml`, private untracked `stake_cam_secrets.json` (mode `0600`), and generated `data/` in that directory. Keep `data_dir = "data"` so the same configuration works in development and deployment; copy secrets separately. Set `User=`, `WorkingDirectory=`, and absolute paths in `ExecStart=` using the actual Pi username and home directory; do not use literal `~` in unit paths. Create `data/` owned by that user before enabling the service. Depend on network readiness (`network-online.target`) and set `TimeoutStartSec=` so a stalled run cannot block later runs.
 - Trigger the service from a systemd timer. A timer does not start a service that is still running, so runs never overlap.
@@ -209,8 +285,8 @@ Write images and JSON documents to a temporary file and then rename it into plac
 
 ### Independent acceptance
 
-- Run `run` manually on the Pi and verify camera connectivity, the annotated JPEG, metadata, Spaces object names, public URLs, and the website.
-- Confirm a temperature-source failure still publishes an image and produces a nonzero exit.
+- Run `run` manually on the Pi and verify both camera connections, Stake annotated image, Ranch full-frame image, separate metadata and Spaces objects, public URLs, and the existing stake website reader. Confirm Stake LAN reachability and Ranch UID/relay access from the deployed network.
+- Confirm a temperature-source failure still publishes both available images and produces a nonzero exit. Confirm failure of either camera leaves the other publication working and returns nonzero.
 - Confirm the timer fires on schedule and logs appear in the journal.
 
 **Review stop:** Document the verified build, installation, and service commands in the README.
