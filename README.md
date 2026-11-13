@@ -77,6 +77,8 @@ Images are saved atomically as `<data_dir>/files/mazama_stake_can_<YYYYMMDDHHMMS
 
 Native UID capture uses `neolink_core` from [ptrmu/neolink](https://github.com/ptrmu/neolink/tree/stakecam/native-snapshots), pinned to an exact Git commit. [Dependency provenance and test ownership](docs/neolink-dependency.md) record the revision, patches, and update procedure. Cargo downloads the source on the first build; later offline builds require its Git and registry caches. Protocol fixtures and patch regression tests live in the fork; Stakecam keeps adapter and application integration tests. It requires no external Neolink executable, Python, or GStreamer. Pi deployment and binary system dependencies remain to be verified.
 
+[RanchCam capture timing](docs/mazama-ranch-capture-timing.md) records measured stage durations, concurrency behavior, and optimization candidates.
+
 ```sh
 bin/test-live
 bin/test-live --config config.toml --secrets-file stake_cam_secrets.json

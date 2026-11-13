@@ -1,0 +1,62 @@
+[
+  {
+    "attempt": 1,
+    "exit": 0,
+    "total_ms": 17448,
+    "stages": {
+      "path_relay": 1,
+      "connect_ms": 2740,
+      "login_ms": 724,
+      "snap_ack_ms": 292,
+      "snap_first_ms": 300,
+      "snap_done_ms": 11722,
+      "snapshot_ms": 11722,
+      "snapshot_bytes": 510543,
+      "logout_ms": 0,
+      "shutdown_ms": 0,
+      "decode_ms": 1011,
+      "encode_ms": 1237,
+      "save_ms": 0
+    }
+  },
+  {
+    "attempt": 2,
+    "exit": 0,
+    "total_ms": 17553,
+    "stages": {
+      "path_relay": 1,
+      "connect_ms": 2781,
+      "login_ms": 682,
+      "snap_ack_ms": 313,
+      "snap_first_ms": 313,
+      "snap_done_ms": 11746,
+      "snapshot_ms": 11747,
+      "snapshot_bytes": 511091,
+      "logout_ms": 0,
+      "shutdown_ms": 0,
+      "decode_ms": 1087,
+      "encode_ms": 1245,
+      "save_ms": 0
+    }
+  },
+  {
+    "attempt": 3,
+    "exit": 0,
+    "total_ms": 17558,
+    "stages": {
+      "path_relay": 1,
+      "connect_ms": 2766,
+      "login_ms": 681,
+      "snap_ack_ms": 300,
+      "snap_first_ms": 307,
+      "snap_done_ms": 11840,
+      "snapshot_ms": 11840,
+      "snapshot_bytes": 516923,
+      "logout_ms": 0,
+      "shutdown_ms": 0,
+      "decode_ms": 1021,
+      "encode_ms": 1240,
+      "save_ms": 0
+    }
+  }
+]
