@@ -1064,7 +1064,7 @@ dependencies = [
 [[package]]
 name = "neolink_core"
 version = "0.6.2"
-source = "git+https://github.com/ptrmu/neolink.git?rev=4013b88a9a453b8104bc54f8055bac9c563d4578#4013b88a9a453b8104bc54f8055bac9c563d4578"
+source = "git+https://github.com/ptrmu/neolink.git?rev=621a929eaac215a7d3746a6f2b41fd4f3d85371c#621a929eaac215a7d3746a6f2b41fd4f3d85371c"
 dependencies = [
  "aes",
  "bytes",

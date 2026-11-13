@@ -54,7 +54,12 @@ pub fn validate_jpeg(bytes: &[u8]) -> Result<()> {
     );
     ensure!(
         image::guess_format(bytes).ok() == Some(image::ImageFormat::Jpeg),
-        "camera response is not a JPEG"
+        "camera response is not a JPEG (bytes: {}, JPEG header offset: {:?}, JPEG end marker: {})",
+        bytes.len(),
+        bytes
+            .windows(3)
+            .position(|window| window == [0xff, 0xd8, 0xff]),
+        bytes.ends_with(&[0xff, 0xd9])
     );
     Ok(())
 }
