@@ -25,7 +25,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     Temperature {
-        #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=24))]
+        #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=48))]
         history_hours: u32,
     },
     Capture {

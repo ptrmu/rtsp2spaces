@@ -272,3 +272,74 @@ async fn processing_and_temperature_persistence_failures_are_isolated() {
     assert!(report.failures[0].starts_with("ChechaquoTemp: process/save:"));
     assert_eq!(report.paths.len(), 1);
 }
+
+struct StakeAndTemperature {
+    barrier: tokio::sync::Barrier,
+    directory: std::path::PathBuf,
+}
+impl Fetcher for StakeAndTemperature {
+    fn fetch(&self, task: TaskId) -> Pin<Box<dyn Future<Output = Result<Fetched>> + Send + '_>> {
+        Box::pin(async move {
+            tokio::time::timeout(std::time::Duration::from_secs(2), self.barrier.wait()).await?;
+            assert!(
+                !self.directory.exists(),
+                "processing started before both fetches finished"
+            );
+            let image = fixture(CameraId::MazamaStakeCan, 400, 200);
+            if task.camera().is_some() {
+                return Ok(Fetched::Image(image));
+            }
+            Ok(Fetched::Temperature(
+                [(-10, -2.0), (-5, 2.0)]
+                    .into_iter()
+                    .map(|(minutes, celsius)| stakecam::temperature::Reading {
+                        source: "fixture".into(),
+                        observed_at: image.captured_at + chrono::Duration::minutes(minutes),
+                        collected_at: image.captured_at,
+                        celsius,
+                    })
+                    .collect(),
+            ))
+        })
+    }
+}
+#[tokio::test]
+async fn stake_and_temperature_fetch_concurrently_then_crop_and_draw_in_either_order() {
+    for tasks in [
+        vec![TaskId::MazamaStakeCan, TaskId::ChechaquoTemp],
+        vec![TaskId::ChechaquoTemp, TaskId::MazamaStakeCan],
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        config(temp.path());
+        let path = temp.path().join("config.toml");
+        let mut text = fs::read_to_string(&path).unwrap();
+        text.push_str("\n[temperature]\nsource = 'fixture'\nfixture_file = 'unused.json'\n");
+        fs::write(&path, text).unwrap();
+        let c = Arc::new(Config::load(&path).unwrap());
+        let fetcher = Arc::new(StakeAndTemperature {
+            barrier: tokio::sync::Barrier::new(2),
+            directory: c.data_dir.clone(),
+        });
+        let report = runner::run(c, tasks, fetcher).await;
+        assert!(report.failures.is_empty(), "{:?}", report.failures);
+        let annotated = report
+            .paths
+            .iter()
+            .find(|p| p.to_string_lossy().ends_with("_annotated.jpg"))
+            .unwrap();
+        let original = report
+            .paths
+            .iter()
+            .find(|p| p.extension().is_some_and(|e| e == "jpg") && *p != annotated)
+            .unwrap();
+        let before = image::open(original).unwrap().to_rgb8();
+        let after = image::open(annotated).unwrap().to_rgb8();
+        assert_eq!(after.dimensions(), (200, 200));
+        assert_ne!(before, after);
+        assert!(
+            after
+                .enumerate_pixels()
+                .any(|(_, y, p)| y > 165 && p[0] > 180 && p[1] > 180 && p[2] > 180)
+        );
+    }
+}

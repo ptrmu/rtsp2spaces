@@ -232,7 +232,7 @@ pub fn collect(
     now: DateTime<Utc>,
     hours: u32,
 ) -> Result<(usize, Vec<PathBuf>)> {
-    ensure!(hours <= 24, "history_hours must be at most 24");
+    ensure!(hours <= 48, "history_hours must be at most 48");
     let readings = source.readings(now, hours)?;
     persist(readings, directory)
 }

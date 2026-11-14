@@ -56,6 +56,8 @@ impl fmt::Display for TaskId {
 }
 #[derive(Deserialize)]
 pub struct Config {
+    #[serde(default)]
+    pub graph: crate::graph::GraphConfig,
     pub data_dir: PathBuf,
     #[serde(default)]
     pub tasks: Vec<TaskId>,
@@ -99,6 +101,7 @@ impl Config {
             !config.data_dir.as_os_str().is_empty(),
             "data_dir must not be empty"
         );
+        config.graph.validate()?;
         let base = path.parent().unwrap_or(Path::new("."));
         if config.data_dir.is_relative() {
             config.data_dir = base.join(&config.data_dir);

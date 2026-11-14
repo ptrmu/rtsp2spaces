@@ -93,7 +93,18 @@ pub async fn run(config: Arc<Config>, tasks: Vec<TaskId>, fetcher: Arc<dyn Fetch
     }
     // No image processing starts until every fetch worker has completed.
     fetched.sort_by_key(|(index, _, _)| *index);
+    let fresh: Vec<Reading> = fetched
+        .iter()
+        .filter_map(|(_, _, value)| match value {
+            Fetched::Temperature(readings) => Some(readings.as_slice()),
+            _ => None,
+        })
+        .flatten()
+        .cloned()
+        .collect();
+    let fresh = Arc::new(fresh);
     for (_, task, value) in fetched {
+        let fresh = Arc::clone(&fresh);
         let config = Arc::clone(&config);
         let outcome = tokio::task::spawn_blocking(move || -> Result<Vec<PathBuf>> {
             match value {
@@ -103,8 +114,27 @@ pub async fn run(config: Arc<Config>, tasks: Vec<TaskId>, fetcher: Arc<dyn Fetch
                         .get(&image.camera)
                         .context("missing camera settings")?
                         .crop;
-                    let processed = crate::process(image, crop)?;
-                    Ok(vec![crate::save(processed, &config.data_dir)?.path])
+                    let is_stake = image.camera == crate::config::CameraId::MazamaStakeCan;
+                    let at = image.captured_at;
+                    // Preserve the cropped original as well as the annotated output.
+                    let jpeg = image.jpeg.clone();
+                    let original = crate::process(image, crop)?;
+                    let mut paths = vec![crate::save(original, &config.data_dir)?.path];
+                    if is_stake && let Some(settings) = &config.temperature {
+                        let mut readings = crate::graph::history(&config.data_dir, at)?;
+                        readings.extend(fresh.iter().cloned());
+                        let annotated = crate::process_with_graph(
+                            FetchedImage {
+                                camera: crate::config::CameraId::MazamaStakeCan,
+                                captured_at: at,
+                                jpeg,
+                            },
+                            crop,
+                            Some((&readings, settings.sampling_interval_minutes, &config.graph)),
+                        )?;
+                        paths.push(crate::save_annotated(annotated, &config.data_dir)?.path);
+                    }
+                    Ok(paths)
                 }
                 Fetched::Temperature(readings) => {
                     Ok(temperature::persist(readings, &config.data_dir)?.1)

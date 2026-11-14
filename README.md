@@ -1,6 +1,6 @@
 # Stakecam
 
-Stakecam is being rewritten to capture a still image from a Reolink camera (through LAN HTTPS or native Reolink UID), draw a 24-hour temperature graph on it, and upload the JPEG and JSON metadata to DigitalOcean Spaces for display on a website. The planned deployment runs each cycle from a systemd timer on a Raspberry Pi.
+Stakecam is being rewritten to capture a still image from a Reolink camera (through LAN HTTPS or native Reolink UID), draw a 48-hour temperature graph on it, and upload the JPEG and JSON metadata to DigitalOcean Spaces for display on a website. The planned deployment runs each cycle from a systemd timer on a Raspberry Pi.
 
 ```text
 camera -> capture -> render temperature graph -> upload -> DigitalOcean Spaces -> website
@@ -10,7 +10,7 @@ temperature sensor -> temperature history (local files)
 
 ## Status
 
-The project is being rewritten in Rust. Phase 1 LAN capture was verified live on 2026-11-08. Native UID capture and concurrent configured tasks are now implemented; validation notes follow. Phase 2 current-temperature collection and 24-hour history import are implemented and verified against Ambient Weather. Rendering, uploading, and deployment remain planned. [DESIGN.md](DESIGN.md) defines the commands, configuration, and implementation phases. The earlier Python implementation is kept for reference in [`python/`](python/).
+The project is being rewritten in Rust. Phase 1 LAN capture was verified live on 2026-11-08. Native UID capture and concurrent configured tasks are now implemented; validation notes follow. Phase 2 current-temperature collection and 48-hour history import are implemented and verified against Ambient Weather. Rendering, uploading, and deployment remain planned. [DESIGN.md](DESIGN.md) defines the commands, configuration, and implementation phases. The earlier Python implementation is kept for reference in [`python/`](python/).
 
 ## Development
 
@@ -59,7 +59,7 @@ cargo run --locked --
 cargo run --locked -- capture --camera MazamaRanchCam
 cargo run --locked -- capture --camera MazamaStakeCan --camera MazamaRanchCam
 cargo run --locked -- temperature
-cargo run --locked -- temperature --history-hours 24
+cargo run --locked -- temperature --history-hours 48
 cargo run --locked -- --verbose
 ```
 
@@ -100,13 +100,13 @@ Read the station's latest outdoor temperature and save it:
 cargo run --locked -- temperature --config config.toml --secrets-file stake_cam_secrets.json
 ```
 
-Seed or refresh the past 24 hours (safe to repeat):
+Seed or refresh the past 48 hours (safe to repeat):
 
 ```sh
-cargo run --locked -- temperature --config config.toml --secrets-file stake_cam_secrets.json --history-hours 24
+cargo run --locked -- temperature --config config.toml --secrets-file stake_cam_secrets.json --history-hours 48
 ```
 
-`--history-hours` accepts 0–24; 0 (the default) collects only the latest reading. The shared `[temperature]` configuration selects `source = "ambient"`, the station's `mac_address`, a positive `timeout_seconds` (default 15), and `sampling_interval_minutes` (default 5, for future graph gap handling; this command does not schedule itself). Both Ambient keys are required in the private secrets file under `temperature.ambient.api_key` and `temperature.ambient.application_key`. Camera credentials are not required by the temperature command.
+`--history-hours` accepts 0–48; 0 (the default) collects only the latest reading. The shared `[temperature]` configuration selects `source = "ambient"`, the station's `mac_address`, a positive `timeout_seconds` (default 15), and `sampling_interval_minutes` (default 5, used for graph gap handling; this command does not schedule itself). Both Ambient keys are required in the private secrets file under `temperature.ambient.api_key` and `temperature.ambient.application_key`. Camera credentials are not required by the temperature command.
 
 Readings are appended to `<data_dir>/temperature/<UTC-observation-date>.jsonl` with `source`, `observed_at`, `collected_at`, and `celsius`. The source is `ambient:<station MAC>`; observation time comes from the API's UTC millisecond timestamp, and Fahrenheit `tempf` is converted to Celsius. Duplicate station/time pairs are skipped, including across restarts. Malformed stored lines are skipped with a warning, and a truncated final line is separated before appending. Invalid or failed readings never become zero. Only one process may write temperature history at a time.
 
@@ -157,3 +157,44 @@ Secrets are loaded read-only. Camera credentials are isolated by camera ID; UID 
 ```
 
 Legacy flat camera/Ambient fields are no longer used. Move `rtsp_user`/`rtsp_pw` into `cameras.MazamaStakeCan`, the old top-level Ranch object into `cameras`, and Ambient fields into `temperature.ambient`. Leave unrelated Spaces fields unchanged until upload implementation. Restrict the file to mode 0600. `.gitignore` excludes `stake_cam_secrets.json`; other private filenames require explicit exclusions. Never put credentials in TOML, CLI values, logs, or tracked files.
+
+## Stake temperature graph
+
+When Stake capture runs with temperature configured, the runner waits for all selected
+fetches, crops the stake image, and draws a rolling 48-hour graph. Stored UTC daily
+history is combined with readings fetched during this run, regardless of task order.
+The cropped original remains at its usual path; the annotated JPEG uses
+`mazama_stake_can_<YYYYMMDDHHMMSS>z_annotated.jpg`. Ranch images have no graph.
+
+The graph has a red trace above freezing and a blue trace below freezing, split
+at each zero crossing. A white horizontal freezing axis and right vertical axis
+mark the graph. All lines default to two pixels wide, with no labels or background
+panel. Its fixed height is 130 pixels with a 3% inset; very small images clamp the
+height to the available space.
+The vertical range includes freezing, has padding, and spans at least 10°C.
+Gaps longer than three sampling intervals are left empty. One reading draws only
+the freezing line; no readings leave the image unchanged. The window ends at the
+image capture timestamp, so future observations are excluded. Rendering reads local
+history and does not automatically fetch historical data; seed it using
+`temperature --history-hours 48` if needed.
+
+Tune `[graph]` using `height_pixels`, `inset_fraction`, `above_freezing_color`, `below_freezing_color`,
+`freezing_color`, `night_axis_color`, `latitude`, `longitude`, and `thickness` as shown in `config.example.toml`.
+Run the focused live acceptance case with:
+
+```sh
+bin/test-live --only 'Stake image and temperature graph'
+```
+
+This case selects only `MazamaStakeCan` and `ChechaquoTemp`, fetches them
+concurrently, then saves both cropped and annotated images. Offline tests verify
+the fetch barrier, task ordering, graph geometry, freezing ranges, and missing data.
+
+The horizontal freezing axis is white from sunrise to sunset and grey at night;
+the right vertical axis stays white. Sunrise/sunset are calculated locally using
+[NOAA solar equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF), including
+the standard 90.833° zenith for refraction and the solar disk. Defaults use
+48.5933° N, 120.4058° W, approximately the
+[Mazama Store location](https://apps.ecology.wa.gov/separ/Main/SEPA/Record.aspx?SEPANumber=202502272).
+These are astronomical sunrise/sunset times; surrounding mountain horizons are
+not modeled. Calculations use UTC and require no API or daylight-saving offsets.

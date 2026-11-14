@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 from urllib.parse import quote, quote_plus
 
@@ -83,9 +84,13 @@ def main():
                 ) if marker in result.stderr]
                 raise RuntimeError('unexpected exit status: ' + str(result.returncode) + '; ' + ', '.join(markers))
             for stem in stems:
-                paths = [Path(line) for line in result.stdout.splitlines() if Path(line).name.startswith(stem)]
+                paths = [Path(line) for line in result.stdout.splitlines() if Path(line).name.startswith(stem) and not Path(line).name.endswith('_annotated.jpg')]
                 if len(paths) != 1 or not paths[0].is_file() or paths[0].read_bytes()[:3] != b'\xff\xd8\xff':
                     raise RuntimeError('expected JPEG missing')
+            if label == 'Stake image and temperature graph':
+                annotated = [Path(line) for line in result.stdout.splitlines() if line.endswith('_annotated.jpg')]
+                if len(annotated) != 1 or not annotated[0].is_file():
+                    raise RuntimeError('annotated stake JPEG missing')
             if diagnostic and diagnostic not in result.stderr:
                 raise RuntimeError('expected diagnostic missing; output suppressed')
             print(f'PASS: {label}', flush=True)
@@ -98,6 +103,15 @@ def main():
         private = Path(temporary)
         normal = private / 'capture.toml'
         write_config(normal, config, images)
+        graph = private / 'stake-temperature.toml'
+        write_config(graph, config, images)
+        graph.write_text(graph.read_text().replace(
+            'tasks = ["MazamaStakeCan", "MazamaRanchCam", "ChechaquoTemp"]',
+            'tasks = ["MazamaStakeCan", "ChechaquoTemp"]'))
+        run('Stake image and temperature graph history seed', graph, ('temperature', '--history-hours', '48'))
+        if not args.only or args.only in 'Stake image and temperature graph':
+            time.sleep(1.1)  # Ambient allows one request per second per account.
+        run('Stake image and temperature graph', graph, stems=('mazama_stake_can_',))
         for camera, stem in zip(CAMERAS, ('mazama_stake_can_', 'mazama_ranch_cam_')):
             run(f'{camera} focused capture', normal, ('capture', '--camera', camera), stems=(stem,))
         run('configured cameras and ChechaquoTemp', normal, stems=('mazama_stake_can_', 'mazama_ranch_cam_'))

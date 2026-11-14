@@ -23,3 +23,16 @@ source = "ambient"
 mac_address = "94:3C:C6:45:02:5F"
 timeout_seconds = 15
 sampling_interval_minutes = 5
+
+# Stake graph placement and colors; no background panel or labels.
+[graph]
+height_pixels = 130
+inset_fraction = 0.03
+above_freezing_color = [255, 0, 0]
+below_freezing_color = [0, 160, 255]
+freezing_color = [255, 255, 255]
+night_axis_color = [192, 192, 192]
+# Approximate Mazama Store location; east-positive longitude.
+latitude = 48.5933
+longitude = -120.4058
+thickness = 2

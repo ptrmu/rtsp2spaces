@@ -33,7 +33,7 @@ fn default_task_run_and_focused_temperature_need_no_fixture_secrets() {
     let path = temp.path().join("output/temperature/2026-11-09.jsonl");
     assert_eq!(fs::read_to_string(path).unwrap().lines().count(), 1);
     let output = command(temp.path())
-        .args(["temperature", "--history-hours", "25"])
+        .args(["temperature", "--history-hours", "49"])
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2));

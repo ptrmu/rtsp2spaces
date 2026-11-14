@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod config;
+pub mod graph;
 pub mod runner;
 pub mod secrets;
 pub mod temperature;
@@ -28,6 +29,14 @@ pub struct Capture {
 }
 
 pub fn process(image: FetchedImage, crop: Crop) -> Result<ProcessedImage> {
+    process_with_graph(image, crop, None)
+}
+
+pub fn process_with_graph(
+    image: FetchedImage,
+    crop: Crop,
+    graph: Option<(&[temperature::Reading], u32, &graph::GraphConfig)>,
+) -> Result<ProcessedImage> {
     camera::validate_jpeg(&image.jpeg)?;
     let mut reader = ImageReader::with_format(Cursor::new(image.jpeg), ImageFormat::Jpeg);
     let mut limits = Limits::default();
@@ -36,7 +45,7 @@ pub fn process(image: FetchedImage, crop: Crop) -> Result<ProcessedImage> {
     limits.max_alloc = Some(256 * 1024 * 1024);
     reader.limits(limits);
     let image_pixels = reader.decode().context("cannot decode camera JPEG")?;
-    let pixels = match crop {
+    let mut pixels = match crop {
         Crop::None => image_pixels,
         Crop::CenterSquare => {
             // Preserve the existing Stake width-crop behavior, including portrait images.
@@ -49,6 +58,13 @@ pub fn process(image: FetchedImage, crop: Crop) -> Result<ProcessedImage> {
             )
         }
     };
+    if image.camera == CameraId::MazamaStakeCan
+        && let Some((readings, interval, config)) = graph
+    {
+        let mut rgb = pixels.to_rgb8();
+        graph::draw(&mut rgb, readings, image.captured_at, interval, config)?;
+        pixels = image::DynamicImage::ImageRgb8(rgb);
+    }
     log::info!(
         "{}: processed {}x{} capture",
         image.camera,
@@ -66,10 +82,18 @@ pub fn process(image: FetchedImage, crop: Crop) -> Result<ProcessedImage> {
     })
 }
 pub fn save(image: ProcessedImage, data_dir: &Path) -> Result<Capture> {
+    save_named(image, data_dir, "")
+}
+
+pub fn save_annotated(image: ProcessedImage, data_dir: &Path) -> Result<Capture> {
+    save_named(image, data_dir, "_annotated")
+}
+
+fn save_named(image: ProcessedImage, data_dir: &Path, suffix: &str) -> Result<Capture> {
     let directory = data_dir.join("files");
     fs::create_dir_all(&directory).context("cannot create capture directory")?;
     let path = directory.join(format!(
-        "{}_{}z.jpg",
+        "{}_{}z{suffix}.jpg",
         image.camera.stem(),
         image.captured_at.format("%Y%m%d%H%M%S")
     ));
